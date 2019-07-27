@@ -66,12 +66,37 @@ bool ByteBuffer::writeLineNo( uint32_t inp ) {
     return true;
 }
 
-bool ByteBuffer::autoScale() {
+bool ByteBuffer::autoScale( size_t size ) {
     if ( !freeMem ) return false;
-    size_t   newSize = bufSize * 2U;
-    uint8_t* newBuf  = new uint8_t [ newSize ];
+    size_t newSize = bufSize * 2U;
+    if ( bufFill + size > newSize ) { newSize = bufFill + size; }
+    uint8_t* newBuf = new uint8_t [ newSize ];
     if ( bufFill ) memcpy( newBuf, baseAddr, bufFill );
     delete [] baseAddr; baseAddr = newBuf; 
     bufSize = newSize;
+    return true;
+}
+
+uint8_t* ByteBuffer::readBlock( size_t size ) {
+    if ( readPos + size > bufFill ) return 0;
+    uint8_t* pOut = new uint8_t [ size ];
+    if ( size ) memcpy( pOut, &baseAddr[readPos], size );
+    readPos += size;
+    return pOut;
+}
+
+bool ByteBuffer::readBlock( void* target, size_t size ) {
+    if ( readPos + size > bufFill ) return false;
+    if ( size ) memcpy( target, &baseAddr[readPos], size );
+    readPos += size;
+    return true;
+}
+
+bool ByteBuffer::writeBlock( const void* source, size_t size ) {
+    if ( bufFill + size > bufSize ) {
+        if ( !autoScale( size ) ) return false;
+    }
+    if ( size ) memcpy( &baseAddr[bufFill], source, size );
+    bufFill += size;
     return true;
 }

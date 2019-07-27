@@ -40,12 +40,14 @@ class ByteBuffer {
     size_t      readPos;
     bool        freeMem;
 
-    bool autoScale();
+    bool autoScale( size_t size = 1U );
 
 public:
     ByteBuffer( size_t bufSize_ );
     ByteBuffer( uint8_t* baseAddr_, size_t bufSize_, size_t bufFill_ );
     ~ByteBuffer();
+
+    inline size_t getReadPos() const { return readPos; }
 
     inline bool readByte( uint8_t& rOut ) {
         if ( readPos >= bufFill ) return false;
@@ -60,6 +62,10 @@ public:
         baseAddr[bufFill++] = inp;
         return true;
     }
+
+    uint8_t* readBlock( size_t size );
+    bool readBlock( void* target, size_t size );
+    bool writeBlock( const void* source, size_t size );
 
     bool readToken( uint16_t& rOut );
     bool writeToken( uint16_t inp );
