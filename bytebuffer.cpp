@@ -65,3 +65,13 @@ bool ByteBuffer::writeLineNo( uint32_t inp ) {
     if ( !writeByte( lo  ) ) return false;
     return true;
 }
+
+bool ByteBuffer::autoScale() {
+    if ( !freeMem ) return false;
+    size_t   newSize = bufSize * 2U;
+    uint8_t* newBuf  = new uint8_t [ newSize ];
+    if ( bufFill ) memcpy( newBuf, baseAddr, bufFill );
+    delete [] baseAddr; baseAddr = newBuf; 
+    bufSize = newSize;
+    return true;
+}

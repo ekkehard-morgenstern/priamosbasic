@@ -27,7 +27,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
-
+#include <errno.h>
 
 #endif

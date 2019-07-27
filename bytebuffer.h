@@ -40,6 +40,8 @@ class ByteBuffer {
     size_t      readPos;
     bool        freeMem;
 
+    bool autoScale();
+
 public:
     ByteBuffer( size_t bufSize_ );
     ByteBuffer( uint8_t* baseAddr_, size_t bufSize_, size_t bufFill_ );
@@ -52,7 +54,9 @@ public:
     }
 
     inline bool writeByte( uint8_t inp ) {
-        if ( bufFill >= bufSize ) return false;
+        if ( bufFill >= bufSize ) {
+            if ( !autoScale() ) return false;
+        }
         baseAddr[bufFill++] = inp;
         return true;
     }
@@ -62,7 +66,7 @@ public:
 
     bool readLineNo( uint32_t& rOut ); // 24 bit
     bool writeLineNo( uint32_t inp );  // 24 bit
-
+    
 };
 
 
