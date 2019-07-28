@@ -134,6 +134,8 @@ public:
 
     inline void clear() { ht.clear(); }
 
+    ValDesc* findVar( const uint8_t* name, size_t nameLen );
+
 };
 
 

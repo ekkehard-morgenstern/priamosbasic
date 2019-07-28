@@ -144,3 +144,14 @@ bool Variables::remVar( const uint8_t* name, size_t nameLen ) {
     return true;
 }
 
+ValDesc* Variables::findVar( const uint8_t* name, size_t nameLen ) {
+
+    HashEntry* ent = ht.find( name, nameLen );
+    if ( ent == 0 ) return 0;
+
+    VarDesc* desc = dynamic_cast<VarDesc*>( ent );
+    if ( desc == 0 ) return 0;
+
+    return desc->valueDesc;
+}
+
