@@ -20,44 +20,7 @@
         E-Mail: ekkehard@ekkehardmorgenstern.de
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
-#ifndef HASHTABLE_H
-#define HASHTABLE_H 1
-
-#ifndef TYPES_H
 #include "types.h"
-#endif
 
-struct HashEntry : public NonCopyable {
-
-    HashEntry*  nextHash;    // next entry with same hash value
-    uint8_t*    name;
-    size_t      nameLen;
-
-    HashEntry( const uint8_t* name_, size_t nameLen_ );
-    virtual ~HashEntry();
-
-};
-
-
-#define HT_SIZE     1024
-
-class HashTable : public NonCopyable {
-
-    HashEntry* table[HT_SIZE];
-
-    size_t computeHashVal( const uint8_t* name, size_t nameLen );
-
-public:
-    HashTable();
-    virtual ~HashTable();
-
-    void enter( HashEntry* hashEntry );
-    
-    HashEntry* find( const uint8_t* name, size_t nameLen );
-
-
-};
-
-
-#endif
-
+NonCopyable::NonCopyable() {}
+NonCopyable::~NonCopyable() {}

@@ -48,6 +48,10 @@ public:
     ~ByteBuffer();
 
     inline size_t getReadPos() const { return readPos; }
+    inline void* getAddr( size_t pos ) const { 
+        if ( pos >= bufFill ) return 0;
+        return &baseAddr[pos];
+    }
 
     inline bool readByte( uint8_t& rOut ) {
         if ( readPos >= bufFill ) return false;

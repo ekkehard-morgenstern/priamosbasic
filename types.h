@@ -26,9 +26,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <errno.h>
+
+class NonCopyable {
+
+    // prevent copying
+    NonCopyable( const NonCopyable& );
+    NonCopyable& operator=( const NonCopyable& );
+
+public:
+    NonCopyable();
+    virtual ~NonCopyable();
+
+};
 
 #endif

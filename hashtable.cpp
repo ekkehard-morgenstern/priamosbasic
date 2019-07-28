@@ -22,15 +22,29 @@
 
 #include "hashtable.h"
 
+HashEntry::HashEntry( const uint8_t* name_, size_t nameLen_ ) {
+    nextHash = 0;
+    name     = new uint8_t [ nameLen_ ];
+    nameLen  = nameLen_;
+    if ( nameLen ) memcpy( name, name_, nameLen );
+}
+
+HashEntry::~HashEntry() {
+    if ( nextHash ) { delete nextHash; nextHash = 0; }
+    delete [] name; name = 0; nameLen = 0;
+}
+
 HashTable::HashTable() {
-    memset( table, 0, sizeof(void*) * HT_SIZE );
+    memset( table, 0, sizeof(HashEntry*) * HT_SIZE );
 }
 
 HashTable::~HashTable() {
-    memset( table, 0, sizeof(void*) * HT_SIZE );
+    for ( int i=0; i < HT_SIZE; i++ ) {
+        if ( table[i] ) { delete table[i]; table[i] = 0; }
+    }
 }
 
-size_t HashTable::computeHashVal( uint8_t* name, size_t nameLen ) {
+size_t HashTable::computeHashVal( const uint8_t* name, size_t nameLen ) {
     uint32_t v1 = UINT32_C(0XFA720BA3);
     uint32_t v2 = UINT32_C(0XD920F8BE);
     uint32_t v3 = UINT32_C(0X7A915F24);
@@ -45,4 +59,23 @@ size_t HashTable::computeHashVal( uint8_t* name, size_t nameLen ) {
     }
     v %= (uint32_t) HT_SIZE;
     return (size_t) v;
+}
+
+void HashTable::enter( HashEntry* hashEntry ) {
+    size_t hv = computeHashVal( hashEntry->name, hashEntry->nameLen );
+    hashEntry->nextHash = table[hv];
+    table[hv] = hashEntry;
+}
+
+HashEntry* HashTable::find( const uint8_t* name, size_t nameLen ) {
+    size_t hv = computeHashVal( name, nameLen );
+    HashEntry* hashEntry = table[hv];
+    while ( hashEntry ) {
+        if ( hashEntry->nameLen == nameLen && 
+            memcmp( hashEntry->name, name, nameLen ) == 0 ) {
+                return hashEntry;    
+        }
+        hashEntry = hashEntry->nextHash;
+    }
+    return 0;
 }

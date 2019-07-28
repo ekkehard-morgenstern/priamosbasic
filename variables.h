@@ -23,15 +23,12 @@
 #ifndef VARIABLES_H
 #define VARIABLES_H     1
 
-#ifndef BYTEBUFFER_H
-#include "bytebuffer.h"
-#endif
-
 #ifndef HASHTABLE_H
 #include "hashtable.h"
 #endif
 
-enum VarType {
+enum ValueType {
+    VT_UNDEF,   // undefined
     VT_INT,     // an integer variable
     VT_REAL,    // a floating-point variable
     VT_STR,     // a string variable
@@ -47,18 +44,46 @@ enum FuncType {
     FT_BAS_SUB, // a user-defined BASIC subroutine / procedure (SUB)
 };
 
-typedef uint64_t    IntVal;
-typedef double      RealVal;
+struct ValDesc : public NonCopyable {
 
-struct StrVal {
-    uint8_t*    strmem;
-    size_t      length;
+    ValueType   type;
+
+    ValDesc( ValueType type_ );
+    virtual ~ValDesc();
+
+    static ValDesc* create( ValueType type_, ... );
 };
 
-struct AryVal {
-    VarType     type;
+struct IntVal : public ValDesc {
+    int64_t     value;
+
+    IntVal();
+    virtual ~IntVal();
+};
+
+struct RealVal : public ValDesc {
+    double     value;
+
+    RealVal();
+    virtual ~RealVal();
+};
+
+struct StrVal : public ValDesc {
+    uint8_t*    text;
+    size_t      len;
+
+    StrVal();
+    StrVal( const uint8_t* text_, size_t len_ );
+    virtual ~StrVal();
+};
+
+struct AryVal : public ValDesc {
+    ValueType   elemType;   // element type
     size_t      dim;        // dimension (size)
-    void*       arymem;     // pointer to memory containing array elements of type VarDesc
+    ValDesc**   cells;      // array cells
+
+    AryVal( ValueType elemType_, size_t dim_ = 10 );
+    virtual ~AryVal();
 };
 
 struct FuncVal {
@@ -67,45 +92,22 @@ struct FuncVal {
     uint8_t     nOpt;   // number of optional arguments
     uint8_t     nRes;   // number of results
     bool        bVarArgs;   // variable arguments list?
-    void*       pFrag;  // pointer to code fragment
+    size_t      pFrag;  // offset in code memory
     size_t      szFrag; // size of code fragment
 };
 
-struct VarDesc {    // variable descriptor
-    VarDesc*    nextHash;   // next variable with same hash value
-    bool        deleted;    // if this variable has been deleted
-    VarType     type;
-    uint8_t     nameLen;
-    uint8_t     name[255];  // maximum name length
-    /* followed by, depending on type:
-        IntVal      intVal;
-        RealVal     realVal;
-        StrVal      StrVal;
-        AryVal      AryVal;
-        FuncVal     FuncVal;
-    */
+struct VarDesc : public HashEntry {    // variable descriptor
+    ValDesc*    valueDesc;
 };
 
 #define INITIAL_DESCBUF_SIZE    131072U
 
-class Variables {
+class Variables : public NonCopyable {
 
-    // prevent copying
-    Variables( const Variables& );
-    Variables& operator=( const Variables& );
-    //
-
-    ByteBuffer  descBuf;    // descriptor buffer
+    HashTable ht;
 
 public:
 
-    void* addVar( const VarDesc& desc );
-
-    void addVal( const IntVal& val );
-    void addVal( const RealVal& val );
-    void addVal( const StrVal& val );
-    void addVal( const AryVal& val );
-    void addVal( const FuncVal& val );
 
 };
 
