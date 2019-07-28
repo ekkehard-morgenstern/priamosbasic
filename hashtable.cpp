@@ -39,9 +39,7 @@ HashTable::HashTable() {
 }
 
 HashTable::~HashTable() {
-    for ( int i=0; i < HT_SIZE; i++ ) {
-        if ( table[i] ) { delete table[i]; table[i] = 0; }
-    }
+    clear();
 }
 
 size_t HashTable::computeHashVal( const uint8_t* name, size_t nameLen ) {
@@ -67,15 +65,41 @@ void HashTable::enter( HashEntry* hashEntry ) {
     table[hv] = hashEntry;
 }
 
+void HashTable::remove( HashEntry* hashEntry ) {
+    size_t hv = computeHashVal( hashEntry->name, hashEntry->nameLen );
+    HashEntry* prev = 0;
+    HashEntry* curr = table[hv];
+    while ( curr ) {
+        if ( curr->nameLen == hashEntry->nameLen && 
+            memcmp( curr->name, hashEntry->name, 
+                hashEntry->nameLen ) == 0 ) {
+            if ( prev ) {
+                prev->nextHash = curr->nextHash;
+            } else {
+                table[hv] = curr->nextHash;
+            }
+            curr->nextHash = 0;
+            return;
+        }
+        prev = curr; curr = curr->nextHash;
+    }
+}
+
 HashEntry* HashTable::find( const uint8_t* name, size_t nameLen ) {
     size_t hv = computeHashVal( name, nameLen );
     HashEntry* hashEntry = table[hv];
     while ( hashEntry ) {
         if ( hashEntry->nameLen == nameLen && 
             memcmp( hashEntry->name, name, nameLen ) == 0 ) {
-                return hashEntry;    
+            return hashEntry;    
         }
         hashEntry = hashEntry->nextHash;
     }
     return 0;
+}
+
+void HashTable::clear() {
+    for ( int i=0; i < HT_SIZE; i++ ) {
+        if ( table[i] ) { delete table[i]; table[i] = 0; }
+    }
 }

@@ -39,6 +39,20 @@ ValDesc* ValDesc::create( ValueType type_, ... ) {
             va_end( ap );
             return new AryVal( elemType, dim );
         }
+        case VT_FUNC: {
+            va_list ap;
+            va_start( ap, type_ );
+            FuncType funcType = va_arg( ap, FuncType );
+            uint8_t  nForm    = va_arg( ap, uint8_t  );
+            uint8_t  nOpt     = va_arg( ap, uint8_t  );
+            uint8_t  nRes     = va_arg( ap, uint8_t  );
+            bool     bVarArgs = va_arg( ap, bool     );
+            FuncPtr  pFunc    = va_arg( ap, FuncPtr  );
+            FuncArg* pFuncArg = va_arg( ap, FuncArg* );
+            va_end( ap );
+            return new FuncVal( funcType, nForm, nOpt, nRes, 
+                bVarArgs, pFunc, pFuncArg );
+        }
     }
     return 0;
 }
@@ -87,3 +101,46 @@ AryVal::~AryVal() {
     }
     delete [] cells; cells = 0; elemType = VT_UNDEF; dim = 0;
 }
+
+FuncVal::FuncVal( FuncType type_, uint8_t nForm_, uint8_t nOpt_,
+    uint8_t nRes_, bool bVarArgs_, FuncPtr pFunc_, 
+    FuncArg* pFuncArg_ ) : ValDesc(VT_FUNC), type(type_),
+    nForm(nForm_), nOpt(nOpt_), nRes(nRes_), bVarArgs(bVarArgs_),
+    pFunc(pFunc_), pFuncArg(pFuncArg_) {}
+
+FuncVal::~FuncVal() {
+    type = FT_UNDEF; nForm = nOpt = nRes = 0; bVarArgs = false;
+    pFunc = 0; pFuncArg = 0;
+}
+
+VarDesc::VarDesc( const uint8_t* name, size_t nameLen,
+    ValDesc* valueDesc_ ) : HashEntry( name, nameLen ),
+    valueDesc(valueDesc_) {}
+
+VarDesc::~VarDesc() { 
+    if ( valueDesc ) { delete valueDesc; valueDesc = 0; }
+}
+
+Variables::Variables() {}
+Variables::~Variables() {}
+
+bool Variables::addVar( const uint8_t* name, size_t nameLen, 
+    ValDesc* desc ) {
+    if ( ht.find( name, nameLen ) ) return false;
+    
+    ht.enter( new VarDesc( name, nameLen, desc ) );
+
+    return true;
+}
+
+bool Variables::remVar( const uint8_t* name, size_t nameLen ) {
+
+    HashEntry* ent = ht.find( name, nameLen );
+    if ( ent == 0 ) return false;
+
+    ht.remove( ent );
+
+    delete ent;
+    return true;
+}
+

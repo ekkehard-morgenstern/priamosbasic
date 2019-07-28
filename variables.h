@@ -37,6 +37,7 @@ enum ValueType {
 };
 
 enum FuncType {
+    FT_UNDEF,   // undefined
     FT_SYS,     // a system function
     FT_USR,     // a user-defined function (machine code)
     FT_BAS_FN,  // a user-defined BASIC function (DEF FN)
@@ -86,18 +87,34 @@ struct AryVal : public ValDesc {
     virtual ~AryVal();
 };
 
-struct FuncVal {
+struct FuncArg : public NonCopyable {
+
+};
+
+typedef void (*FuncPtr)( FuncArg* );
+
+struct FuncVal : public ValDesc {
     FuncType    type;   // type of function
     uint8_t     nForm;  // number of formal arguments
     uint8_t     nOpt;   // number of optional arguments
     uint8_t     nRes;   // number of results
     bool        bVarArgs;   // variable arguments list?
-    size_t      pFrag;  // offset in code memory
-    size_t      szFrag; // size of code fragment
+    // callable function in system space (must be specified)
+    FuncPtr     pFunc;      // function address
+    FuncArg*    pFuncArg;   // function argument)
+
+    FuncVal( FuncType type_, uint8_t nForm_, uint8_t nOpt_,
+        uint8_t nRes_, bool bVarArgs_, FuncPtr pFunc_, 
+        FuncArg* pFuncArg_ );
+    virtual ~FuncVal();
 };
 
 struct VarDesc : public HashEntry {    // variable descriptor
     ValDesc*    valueDesc;
+
+    VarDesc( const uint8_t* name, size_t nameLen,
+        ValDesc* valueDesc_ );
+    virtual ~VarDesc();
 };
 
 #define INITIAL_DESCBUF_SIZE    131072U
@@ -107,7 +124,15 @@ class Variables : public NonCopyable {
     HashTable ht;
 
 public:
+    Variables();
+    ~Variables();
 
+    bool addVar( const uint8_t* name, size_t nameLen, 
+        ValDesc* desc );
+
+    bool remVar( const uint8_t* name, size_t nameLen );
+
+    inline void clear() { ht.clear(); }
 
 };
 

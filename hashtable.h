@@ -52,9 +52,12 @@ public:
     virtual ~HashTable();
 
     void enter( HashEntry* hashEntry );
+
+    void remove( HashEntry* hashEntry );
     
     HashEntry* find( const uint8_t* name, size_t nameLen );
 
+    void clear();
 
 };
 
