@@ -20,30 +20,25 @@
         E-Mail: ekkehard@ekkehardmorgenstern.de
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
+#ifndef EXCEPTION_H
+#define EXCEPTION_H 1
+
 #ifndef TYPES_H
-#define TYPES_H     1
+#include "types.h"
+#endif
 
-#include <exception>
+class Exception : public std::exception {
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <stdio.h>
-#include <errno.h>
-
-class NonCopyable {
-
-    // prevent copying
-    NonCopyable( const NonCopyable& );
-    NonCopyable& operator=( const NonCopyable& );
+    char buf[1024];
 
 public:
-    NonCopyable();
-    virtual ~NonCopyable();
+    Exception( const char* fmt, ... ) throw();
+    virtual ~Exception() throw();
 
+    virtual const char* what() const throw();
 };
 
+
+
 #endif
+

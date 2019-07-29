@@ -21,6 +21,7 @@
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
 #include "variables.h"
+#include "exception.h"
 
 
 ValDesc::ValDesc( ValueType type_ ) : type(type_) {}
@@ -34,21 +35,12 @@ ValDesc* ValDesc::create( ValueType type_, ... ) {
         case VT_ARY: {
             va_list ap;
             va_start( ap, type_ );
-            ValueType elemType = va_arg( ap, ValueType );
-            size_t    dim      = va_arg( ap, size_t    );
             va_end( ap );
-            return new AryVal( elemType, dim );
+            return new AryVal( elemType, ndims, dims );
         }
         case VT_FUNC: {
             va_list ap;
             va_start( ap, type_ );
-            FuncType funcType = va_arg( ap, FuncType );
-            uint8_t  nForm    = va_arg( ap, uint8_t  );
-            uint8_t  nOpt     = va_arg( ap, uint8_t  );
-            uint8_t  nRes     = va_arg( ap, uint8_t  );
-            bool     bVarArgs = va_arg( ap, bool     );
-            FuncPtr  pFunc    = va_arg( ap, FuncPtr  );
-            FuncArg* pFuncArg = va_arg( ap, FuncArg* );
             va_end( ap );
             return new FuncVal( funcType, nForm, nOpt, nRes, 
                 bVarArgs, pFunc, pFuncArg );
@@ -79,27 +71,77 @@ StrVal::~StrVal() {
     delete [] text; text = 0; len = 0;
 }
 
-AryVal::AryVal( ValueType elemType_, size_t dim_ ) 
-    : ValDesc(VT_ARY), elemType(elemType_), dim(dim_) {
-    cells = new ValDesc* [ dim ];
-    for ( size_t i=0; i < dim; i++ ) {
-        ValDesc* cell;
-        if ( elemType_ == VT_ARY ) {
-            // nested Array: in this case, cannot specify cells
-            // TODO: need to specify extra dimension info
-            cell = 0;
-        } else {
-            cell = ValDesc::create( elemType );
+void AryVal::init() {
+    if ( elemType == VT_ARY || elemType == VT_FUNC ) {
+        throw Exception( "array type impossible" );
+    }
+    totalSize = 0;
+    for ( size_t i=0; i < ndims; ++i ) {
+        size_t dim = dims[i];
+        if ( dim == 0 ) {
+            throw Exception( "dimension #%d is zero", (int) i );
         }
-        cells[i] = cell;
+        if ( totalSize > SIZE_MAX / dim ) {
+            throw Exception( "dimension #%d too large", (int) i );
+        }
+        totalSize *= dim;
+    }
+    cells = new ValDesc* [ totalSize ];
+    for ( size_t i=0; i < totalSize; i++ ) {
+        cells[i] = ValDesc::create( elemType );
     }
 }
 
-AryVal::~AryVal() {
-    for ( size_t i=0; i < dim; i++ ) {
-        if ( cells[i] ) { delete cells[i]; cells[i] = 0; }
+AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
+    elemType  = va_arg( ap, ValueType );
+    ndims     = va_arg( ap, size_t    );
+    dims      = new size_t [ ndims ];
+    for ( size_t i=0; i < ndims; ++i ) {
+        dims[i] = va_arg( ap, size_t );
     }
-    delete [] cells; cells = 0; elemType = VT_UNDEF; dim = 0;
+    init();
+}
+
+AryVal::AryVal( ValueType elemType_, size_t ndims_, ... ) 
+    : ValDesc(VT_ARY), elemType(elemType_), ndims(ndims_) {
+    va_list ap;
+    va_start( ap, ndims );
+    dims = new size_t [ ndims ];
+    for ( size_t i=0; i < ndims; ++i ) {
+        dims[i] = va_arg( ap, size_t );
+    }
+    va_end( ap );
+    init();
+}
+
+AryVal::AryVal( ValueType elemType_, size_t ndims_, 
+    const size_t* dims_ ) : ValDesc(VT_ARY), elemType(elemType_),
+    ndims(ndims_) {
+    dims = new size_t [ ndims ];
+    if ( ndims ) memcpy( dims, dims_, sizeof(size_t) * ndims );
+    init();
+}
+
+AryVal::~AryVal() {
+    while ( totalSize ) {
+        --totalSize;
+        if ( cells[totalSize] ) { 
+            delete cells[totalSize]; cells[totalSize] = 0; 
+        }
+    }
+    delete [] cells; cells = 0; 
+    delete [] dims; dims = 0; ndims = 0;
+    elemType = VT_UNDEF;
+}
+
+FuncVal::FuncVal( va_list ap ) : ValDesc(VT_FUNC) {
+    type     = va_arg( ap, FuncType );
+    nForm    = va_arg( ap, uint8_t  );
+    nOpt     = va_arg( ap, uint8_t  );
+    nRes     = va_arg( ap, uint8_t  );
+    bVarArgs = va_arg( ap, bool     );
+    pFunc    = va_arg( ap, FuncPtr  );
+    pFuncArg = va_arg( ap, FuncArg* );
 }
 
 FuncVal::FuncVal( FuncType type_, uint8_t nForm_, uint8_t nOpt_,

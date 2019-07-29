@@ -80,11 +80,19 @@ struct StrVal : public ValDesc {
 
 struct AryVal : public ValDesc {
     ValueType   elemType;   // element type
-    size_t      dim;        // dimension (size)
+    size_t      ndims;      // number of dimensions
+    size_t      totalSize;  // number of total cells
+    size_t*     dims;       // dimensions (sizes)
     ValDesc**   cells;      // array cells
 
-    AryVal( ValueType elemType_, size_t dim_ = 10 );
+    AryVal( va_list ap );
+    AryVal( ValueType elemType_, size_t ndims_, ... );
+    AryVal( ValueType elemType_, size_t ndims_, 
+        const size_t* dims_ );
     virtual ~AryVal();
+
+private:
+    void init();
 };
 
 struct FuncArg : public NonCopyable {
@@ -103,6 +111,7 @@ struct FuncVal : public ValDesc {
     FuncPtr     pFunc;      // function address
     FuncArg*    pFuncArg;   // function argument)
 
+    FuncVal( va_list ap );
     FuncVal( FuncType type_, uint8_t nForm_, uint8_t nOpt_,
         uint8_t nRes_, bool bVarArgs_, FuncPtr pFunc_, 
         FuncArg* pFuncArg_ );
