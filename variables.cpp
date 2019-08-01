@@ -32,19 +32,6 @@ ValDesc* ValDesc::create( ValueType type_, ... ) {
         case VT_INT: return new IntVal();
         case VT_REAL: return new RealVal();
         case VT_STR: return new StrVal();
-        case VT_ARY: {
-            va_list ap;
-            va_start( ap, type_ );
-            va_end( ap );
-            return new AryVal( elemType, ndims, dims );
-        }
-        case VT_FUNC: {
-            va_list ap;
-            va_start( ap, type_ );
-            va_end( ap );
-            return new FuncVal( funcType, nForm, nOpt, nRes, 
-                bVarArgs, pFunc, pFuncArg );
-        }
     }
     return 0;
 }
