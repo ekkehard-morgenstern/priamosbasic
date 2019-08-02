@@ -36,6 +36,8 @@ HashEntry::~HashEntry() {
 
 HashTable::HashTable() {
     memset( table, 0, sizeof(HashEntry*) * HT_SIZE );
+    memset( count, 0, sizeof(size_t    ) * HT_SIZE );
+    total = 0;
 }
 
 HashTable::~HashTable() {
@@ -63,6 +65,7 @@ void HashTable::enter( HashEntry* hashEntry ) {
     size_t hv = computeHashVal( hashEntry->name, hashEntry->nameLen );
     hashEntry->nextHash = table[hv];
     table[hv] = hashEntry;
+    count[hv] += 1U; total += 1U;
 }
 
 void HashTable::remove( HashEntry* hashEntry ) {
@@ -79,6 +82,7 @@ void HashTable::remove( HashEntry* hashEntry ) {
                 table[hv] = curr->nextHash;
             }
             curr->nextHash = 0;
+            count[hv] -= 1U; total -= 1U;
             return;
         }
         prev = curr; curr = curr->nextHash;
@@ -101,5 +105,26 @@ HashEntry* HashTable::find( const uint8_t* name, size_t nameLen ) {
 void HashTable::clear() {
     for ( int i=0; i < HT_SIZE; i++ ) {
         if ( table[i] ) { delete table[i]; table[i] = 0; }
+        count[i] = 0;
     }
+    total = 0;
+}
+
+void HashTable::dumpCounts() const {
+    size_t x = 0;
+    for ( int i=0; i < HT_SIZE; i++ ) {
+        printf( " %lu", (unsigned long) count[i] );
+        if ( ++x >= 16U ) { printf( "\n" ); x = 0; }
+        else if ( i == HT_SIZE-1 ) printf( "\n" );
+    }
+}
+
+double HashTable::coverage() const {
+    if ( total == 0 ) return 0;
+    double sum = 0;
+    for ( int i=0; i < HT_SIZE; ++i ) {
+        if ( count[i] ) sum += 1;
+    }
+    double perc = ( sum * 100 ) / HT_SIZE;
+    return perc;
 }

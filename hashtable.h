@@ -44,6 +44,8 @@ struct HashEntry : public NonCopyable {
 class HashTable : public NonCopyable {
 
     HashEntry* table[HT_SIZE];
+    size_t     count[HT_SIZE];
+    size_t     total;
 
     size_t computeHashVal( const uint8_t* name, size_t nameLen );
 
@@ -58,6 +60,9 @@ public:
     HashEntry* find( const uint8_t* name, size_t nameLen );
 
     void clear();
+
+    void dumpCounts() const;
+    double coverage() const;
 
 };
 
