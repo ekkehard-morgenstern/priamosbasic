@@ -43,7 +43,7 @@ APP=pribasic
 	$(CXX) -o $@ $<
 
 $(APP): $(MODULES)
-	$(LXX) $(MODULES) $(LIBS)
+	$(LXX) -o $(APP) $(MODULES) $(LIBS)
 
 bytebuffer.o: bytebuffer.cpp $(INCFILES)
 
