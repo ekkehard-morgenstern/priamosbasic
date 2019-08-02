@@ -24,3 +24,11 @@
 
 NonCopyable::NonCopyable() {}
 NonCopyable::~NonCopyable() {}
+
+double getTime() {
+    struct timespec ts;
+    memset( &ts, 0, sizeof(ts) );
+    clock_gettime( CLOCK_MONOTONIC, &ts );
+    return ( (double) ts.tv_sec ) + ( (double) ts.tv_nsec /
+        1.0e9 );
+}

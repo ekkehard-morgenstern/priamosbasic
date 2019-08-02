@@ -33,6 +33,8 @@
 #include <limits.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
+#include <math.h>
 
 class NonCopyable {
 
@@ -45,5 +47,7 @@ public:
     virtual ~NonCopyable();
 
 };
+
+double getTime();
 
 #endif

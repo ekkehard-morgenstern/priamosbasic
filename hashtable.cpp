@@ -121,10 +121,13 @@ void HashTable::dumpCounts() const {
 
 double HashTable::coverage() const {
     if ( total == 0 ) return 0;
-    double sum = 0;
+    double sum = 0; size_t max_count = 0;
     for ( int i=0; i < HT_SIZE; ++i ) {
-        if ( count[i] ) sum += 1;
+        if ( count[i] > max_count ) max_count = count[i];
     }
-    double perc = ( sum * 100 ) / HT_SIZE;
+    for ( int i=0; i < HT_SIZE; ++i ) {
+        if ( count[i] ) sum += (long) count[i];
+    }
+    double perc = ( sum * 100 ) / (long)( HT_SIZE * max_count );
     return perc;
 }

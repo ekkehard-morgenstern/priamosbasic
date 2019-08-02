@@ -20,7 +20,7 @@ CXXCOMP=g++
 ifdef DEBUG
 CPPFLAGS=-g
 else
-CPPFLAGS=
+CPPFLAGS=-O3
 endif
 
 CPPFLAGS+= -Wall
@@ -33,17 +33,27 @@ INCFILES=bytebuffer.h exception.h hashtable.h interpreter.h \
 	tokenizer.h types.h variables.h 
 
 MODULES=bytebuffer.o exception.o hashtable.o interpreter.o \
-	main.o tokenizer.o types.o variables.o
+	tokenizer.o types.o variables.o
+
+APP_MODULES=main.o $(MODULES)
+TEST1_MODULES=testhashtable.o $(MODULES)
 
 LIBS=-lm -lrt
 
 APP=pribasic
+TEST1=testhashtable
 
 .cpp.o:
 	$(CXX) -o $@ $<
 
-$(APP): $(MODULES)
-	$(LXX) -o $(APP) $(MODULES) $(LIBS)
+all: $(APP) $(TEST1)
+	echo ok >all
+
+$(APP): $(APP_MODULES)
+	$(LXX) -o $(APP) $(APP_MODULES) $(LIBS)
+
+$(TEST1): $(TEST1_MODULES)
+	$(LXX) -o $(TEST1) $(TEST1_MODULES) $(LIBS)
 
 bytebuffer.o: bytebuffer.cpp $(INCFILES)
 
@@ -61,3 +71,4 @@ types.o: types.cpp $(INCFILES)
 
 variables.o: variables.cpp $(INCFILES)
 
+testhashtable.o: testhashtable.cpp $(INCFILES)
