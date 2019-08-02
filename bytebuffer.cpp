@@ -38,6 +38,7 @@ bool ByteBuffer::readToken( uint16_t& rOut ) {
     if ( !readByte( hi ) ) return false;
     if ( !readByte( lo ) ) return false;
     rOut = ( ((uint16_t)hi) << UINT8_C(8) ) | lo;
+    return true;
 }
 
 bool ByteBuffer::writeToken( uint16_t inp ) {
@@ -54,6 +55,7 @@ bool ByteBuffer::readLineNo( uint32_t& rOut ) {
     if ( !readByte( mid ) ) return false;
     if ( !readByte( lo  ) ) return false;
     rOut = ( ((uint32_t)hi) << UINT8_C(16) ) | ( ((uint16_t)mid) << UINT8_C(8) ) | lo;
+    return true;
 }
 
 bool ByteBuffer::writeLineNo( uint32_t inp ) {

@@ -32,6 +32,7 @@ ValDesc* ValDesc::create( ValueType type_, ... ) {
         case VT_INT: return new IntVal();
         case VT_REAL: return new RealVal();
         case VT_STR: return new StrVal();
+        default: break;
     }
     return 0;
 }
@@ -80,8 +81,8 @@ void AryVal::init() {
 }
 
 AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
-    elemType  = va_arg( ap, ValueType );
-    ndims     = va_arg( ap, size_t    );
+    elemType  = (ValueType) va_arg( ap, int );
+    ndims     = va_arg( ap, size_t );
     dims      = new size_t [ ndims ];
     for ( size_t i=0; i < ndims; ++i ) {
         dims[i] = va_arg( ap, size_t );
@@ -92,7 +93,7 @@ AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
 AryVal::AryVal( ValueType elemType_, size_t ndims_, ... ) 
     : ValDesc(VT_ARY), elemType(elemType_), ndims(ndims_) {
     va_list ap;
-    va_start( ap, ndims );
+    va_start( ap, ndims_ );
     dims = new size_t [ ndims ];
     for ( size_t i=0; i < ndims; ++i ) {
         dims[i] = va_arg( ap, size_t );
@@ -122,11 +123,11 @@ AryVal::~AryVal() {
 }
 
 FuncVal::FuncVal( va_list ap ) : ValDesc(VT_FUNC) {
-    type     = va_arg( ap, FuncType );
-    nForm    = va_arg( ap, uint8_t  );
-    nOpt     = va_arg( ap, uint8_t  );
-    nRes     = va_arg( ap, uint8_t  );
-    bVarArgs = va_arg( ap, bool     );
+    type     = (FuncType) va_arg( ap, int );
+    nForm    = (uint8_t ) va_arg( ap, int );
+    nOpt     = (uint8_t ) va_arg( ap, int );
+    nRes     = (uint8_t ) va_arg( ap, int );
+    bVarArgs = (bool    ) va_arg( ap, int );
     pFunc    = va_arg( ap, FuncPtr  );
     pFuncArg = va_arg( ap, FuncArg* );
 }
