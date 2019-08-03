@@ -27,7 +27,20 @@
 #include "types.h"
 #endif
 
-class Tokenizer {
+#ifndef TOKENS_H
+#include "tokens.h"
+#endif
+
+class Tokenizer : public NonCopyable {
+
+    const uint8_t* source;
+    const uint8_t* pos;
+    size_t         sourceLen;
+
+public:
+    Tokenizer( const uint8_t* source_, size_t sourceLen_ );
+    virtual ~Tokenizer();
+
 
 
 

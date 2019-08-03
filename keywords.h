@@ -31,7 +31,7 @@
 
 struct PredefKW {
     const char* text;   // counted string (1st byte = length)
-    int         tok;
+    short       tok;
 };
 
 struct KW_Hashent : public HashEntry {
@@ -42,17 +42,23 @@ struct KW_Hashent : public HashEntry {
 
 };
 
-class Keywords {
+class Keywords : private NonCopyable {
 
     HashTable ht;
 
     static const PredefKW predef[];
 
-public:
     Keywords();
-    ~Keywords();
+    virtual ~Keywords();
 
     void init();    // add predefined keywords
+
+    // initialized at start of program
+    static Keywords instance;
+
+public:
+
+    static inline Keywords& getInstance() { return instance; }
 
     void add( const uint8_t* name, size_t nameLen, uint16_t tok );
 

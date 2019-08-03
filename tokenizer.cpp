@@ -21,5 +21,16 @@
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
 #include "tokenizer.h"
+#include "keywords.h"
+
+
+Tokenizer::Tokenizer( const uint8_t* source_, size_t sourceLen_ ) 
+    : source(source_), pos(source_), sourceLen(sourceLen_) {
+
+}
+
+Tokenizer::~Tokenizer() {
+    source = pos = 0; sourceLen = 0;
+}
 
 

@@ -30,7 +30,7 @@ LXX=$(CXXCOMP) $(CPPFLAGS)
 
 
 INCFILES=bytebuffer.h exception.h hashtable.h interpreter.h \
-	tokenizer.h types.h variables.h keywords.h
+	tokenizer.h types.h variables.h keywords.h tokens.h
 
 MODULES=bytebuffer.o exception.o hashtable.o interpreter.o \
 	tokenizer.o types.o variables.o keywords.o

@@ -29,6 +29,12 @@ int main( int argc, char** argv ) {
     FILE* fp = fopen( "tokeninfo.txt", "rt" );
     if ( fp == 0 ) return EXIT_FAILURE;
 
+    FILE* fpt = fopen( "tokens.lst", "wt" );
+    if ( fpt == 0 ) return EXIT_FAILURE;
+
+    FILE* fpn = fopen( "names.lst", "wt" );
+    if ( fpn == 0 ) return EXIT_FAILURE;
+
     char lbuf[1024];
     while ( fgets( lbuf, sizeof(lbuf), fp ) ) {
 
@@ -38,12 +44,15 @@ int main( int argc, char** argv ) {
             int len = strlen( name );
             char oct[4];
             snprintf( oct, sizeof(oct), "%0o", len );
-            printf( "{ \"\\%s%s\", 0X%s%s },\n", oct, name,
-                h1, h2 );
+            fprintf( fpt, "#define KW_%s 0X%s%s\n", name, h1, h2  );
+            fprintf( fpn, "{ \"\\%s%s\", KW_%s },\n", oct, name,
+                name );
         }
 
     }
 
+    fclose( fpt );
+    fclose( fpn );
     fclose( fp );
 
     return EXIT_SUCCESS;
