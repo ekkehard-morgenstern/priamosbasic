@@ -31,17 +31,28 @@
 #include "tokens.h"
 #endif
 
+#define MAXIDENT         32
+
 class Tokenizer : public NonCopyable {
 
     const uint8_t* source;
     const uint8_t* pos;
+    const uint8_t* sourceEnd;
     size_t         sourceLen;
+    uint8_t        ident[MAXIDENT];
+    int            idLen;
+
+    void readIdent( uint8_t b );
 
 public:
     Tokenizer( const uint8_t* source_, size_t sourceLen_ );
     virtual ~Tokenizer();
 
+    uint16_t nextTok();
 
+    // only valid for T_IDENT:
+    inline const uint8_t* getIdent() const { return ident; }
+    inline size_t getIdentLen() const { return idLen; }
 
 
 };
