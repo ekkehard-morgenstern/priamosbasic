@@ -43,7 +43,7 @@ void Tokenizer::readIdent( uint8_t b ) {
     } while ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||
         ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ||
         ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) );
-    if ( b == '$' ) do {
+    if ( b == '$' || b == '%' ) do {
         ident[len++] = b;
         if ( ++pos >= sourceEnd ) break;
         b = *pos;
@@ -55,29 +55,75 @@ void Tokenizer::readIdent( uint8_t b ) {
     idLen = len;
 }
 
+bool Tokenizer::isDigit( uint8_t b, int base ) {
+    uint8_t v;
+    if ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) {
+        v = b - UINT8_C(0X30);
+    } else if ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) {
+        v = ( b - UINT8_C(0X41) ) + UINT8_C(10);
+    } else if ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) {
+        v = ( b - UINT8_C(0X61) ) + UINT8_C(10);
+    } else {
+        return false;
+    }
+    if ( (int) v >= base ) return false;
+    return true;
+}
+
+void Tokenizer::readNum( uint8_t b, int base ) {
+    char numBuf[NUMBUFSZ];
+    int nbPos = 0;
+    if ( b == UINT8_C(0X2E) ) {
+        numBuf[nbPos++] = UINT8_C(0X30);
+    }
+    do {
+        numBuf[nbPos++] = b;
+    }
+    
+
+
+
+}
+
 uint16_t Tokenizer::nextTok() {
 
-     uint8_t b; uint16_t t;
+    uint8_t b; uint16_t t;
 
-     if ( pos >= sourceEnd ) return T_EOL;
+    if ( pos >= sourceEnd ) return T_EOL;
 
-     b = *pos;
-     if ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||
-          ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ) {
-          readIdent( b );
-          t = Keywords::getInstance().lookup( ident, idLen );
-          if ( t != KW_NOTFOUND ) return t;
-          return T_IDENT;
-     }
+    b = *pos;
+    if ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||
+        ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ) {
+        readIdent( b );
+        t = Keywords::getInstance().lookup( ident, idLen );
+        if ( t != KW_NOTFOUND ) return t;
+        return T_IDENT;
+    }
 
-     if ( b == UINT8_C(0X20) || b == UINT8_C(0X08) ) {
-          do {
-              if ( ++pos >= sourceEnd ) break;
-              b = *pos;
-          } while ( b == UINT8_C(0X20) || b == UINT8_C(0X08) );
-          return T_SPC;
-     }
+    if ( b == UINT8_C(0X20) || b == UINT8_C(0X08) ) {
+        do {
+            if ( ++pos >= sourceEnd ) break;
+            b = *pos;
+        } while ( b == UINT8_C(0X20) || b == UINT8_C(0X08) );
+        return T_SPC;
+    }
 
+    if ( b == UINT8_C(0X22) ) {
+        slLen = 0;
+        do {
+            if ( ++pos >= sourceEnd ) return T_STRTRM;
+            if ( slLen >= MAXSTRLIT ) return T_STRLNG;
+            b = *pos;
+            if ( b == UINT8_C(0X22) ) { ++pos; break; }
+            strlit[slLen++] = b;
+        } while (1);
+        return T_STRLIT;
+    }
+
+    if ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) {
+        readNum( b, 10 );
+        return T_NUMLIT;
+    }
 
 }
 

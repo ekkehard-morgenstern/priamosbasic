@@ -32,6 +32,8 @@
 #endif
 
 #define MAXIDENT         32
+#define MAXSTRLIT        255
+#define NUMBUFSZ         256
 
 class Tokenizer : public NonCopyable {
 
@@ -41,8 +43,13 @@ class Tokenizer : public NonCopyable {
     size_t         sourceLen;
     uint8_t        ident[MAXIDENT];
     int            idLen;
+    uint8_t        strlit[MAXSTRLIT];
+    int            slLen;
 
     void readIdent( uint8_t b );
+    
+    static bool isDigit( uint8_t b, int base );
+    void readNum( uint8_t b, int base );
 
 public:
     Tokenizer( const uint8_t* source_, size_t sourceLen_ );
@@ -53,6 +60,10 @@ public:
     // only valid for T_IDENT:
     inline const uint8_t* getIdent() const { return ident; }
     inline size_t getIdentLen() const { return idLen; }
+
+    // only valid for T_STRLIT:
+    inline const uint8_t* getStrLit() const { return strlit; }
+    inline size_t getStrLitLen() const { return slLen; }
 
 
 };

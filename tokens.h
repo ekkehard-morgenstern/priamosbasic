@@ -202,4 +202,8 @@
 #define T_LEXT          0X7C
 #define T_RBRACE        0X7D
 
+#define T_STRTRM        0XFFFF  // string not terminated
+#define T_STRLNG        0XFFFE  // string too long
+
+
 #endif
