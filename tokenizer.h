@@ -49,7 +49,7 @@ class Tokenizer : public NonCopyable {
     void readIdent( uint8_t b );
     
     static bool isDigit( uint8_t b, int base );
-    void readNum( uint8_t b, int base );
+    uint16_t readNum( uint8_t b, int base );
 
 public:
     Tokenizer( const uint8_t* source_, size_t sourceLen_ );

@@ -25,10 +25,8 @@
 
 
 Tokenizer::Tokenizer( const uint8_t* source_, size_t sourceLen_ ) 
-    : source(source_), pos(source_), sourceLen(sourceLen_),
-      sourceEnd(source_ + sourceLen_) {
-
-}
+    : source(source_), pos(source_), sourceEnd(source_+sourceLen_),
+      sourceLen(sourceLen_) {}
 
 Tokenizer::~Tokenizer() {
     source = pos = 0; sourceLen = 0;
@@ -70,19 +68,79 @@ bool Tokenizer::isDigit( uint8_t b, int base ) {
     return true;
 }
 
-void Tokenizer::readNum( uint8_t b, int base ) {
-    char numBuf[NUMBUFSZ];
-    int nbPos = 0;
+uint16_t Tokenizer::readNum( uint8_t b, int base ) {
+    char numBuf[NUMBUFSZ+1];
+    int nbPos = 0; bool haveDot = false;
     if ( b == UINT8_C(0X2E) ) {
         numBuf[nbPos++] = UINT8_C(0X30);
+        haveDot = true;
     }
-    do {
+    do {    // read digits (before/after dot)
+        if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
         numBuf[nbPos++] = b;
+        if ( ++pos >= sourceEnd ) break;
+        b = *pos;
+    } while ( isDigit( b, base ) );
+    if ( !haveDot && b == UINT8_C(0X2E) ) do {
+        // store dot
+        haveDot = true;
+        if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+        numBuf[nbPos++] = b;
+        // if EOL occurs right after dot
+        if ( ++pos >= sourceEnd ) {
+            // attempt to store at least one zero
+            if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+            numBuf[nbPos++] = UINT8_C(0X30);
+            break;
+        }
+        // otherwise, check if there's a digit after the dot
+        b = *pos;
+        if ( isDigit( b, base ) ) {
+            // yes, continue to read and store digits
+            do {
+                if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+                numBuf[nbPos++] = b;
+                if ( ++pos >= sourceEnd ) break;
+                b = *pos;
+            } while ( isDigit( b, base ) );
+        } else {
+            // no, store at least a zero
+            if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+            numBuf[nbPos++] = UINT8_C(0X30);
+        }        
+    } while(0);
+    // check for exponent (P for bases > 10, E otherwise)
+    if ( ( base > 10 && ( b == UINT8_C(0X50) || 
+        b == UINT8_C(0X70) ) ) || ( b == UINT8_C(0X45) ||
+        b == UINT8_C(0X65) ) ) {
+        if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+        numBuf[nbPos++] = b;
+        if ( ++pos >= sourceEnd ) return T_NUMBAD;
+        b = *pos;
+        // check for '+' or '-'
+        if ( b == UINT8_C(0X2B) ) {
+            // '+': ignore
+            if ( ++pos >= sourceEnd ) return T_NUMBAD;
+            b = *pos;
+        } else if ( b == UINT8_C(0X2D) ) {
+            // '-': store
+            if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+            numBuf[nbPos++] = b;
+            if ( ++pos >= sourceEnd ) return T_NUMBAD;
+            b = *pos;
+        }
+        // check for digits
+        if ( !isDigit( b, base ) ) return T_NUMBAD;
+        do {
+            if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
+            numBuf[nbPos++] = b;
+            if ( ++pos >= sourceEnd ) break;
+            b = *pos;
+        } while ( isDigit( b, base ) );        
     }
-    
-
-
-
+    numBuf[nbPos] = '\0';
+    printf( "%s\n", numBuf );
+    return T_NUMLIT;
 }
 
 uint16_t Tokenizer::nextTok() {
@@ -125,6 +183,7 @@ uint16_t Tokenizer::nextTok() {
         return T_NUMLIT;
     }
 
+    return T_UNIMPL;
 }
 
 
