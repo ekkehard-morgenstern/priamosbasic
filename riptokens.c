@@ -38,15 +38,24 @@ int main( int argc, char** argv ) {
     char lbuf[1024];
     while ( fgets( lbuf, sizeof(lbuf), fp ) ) {
 
-        char h1[3], h2[3], name[17];
-        if ( sscanf( lbuf, "$%2s $%2s %16[A-Za-z0-9]", h1, h2, 
+        char h1[3], h2[3], name[17], kwname[32];
+        if ( sscanf( lbuf, "$%2s $%2s %16[A-Za-z0-9$(]", h1, h2, 
             name ) == 3 && strlen(h1)==2 && strlen(h2)==2 ) {
             int len = strlen( name );
+            int j   = 0;
+            for ( int i=0; i < len; ++i ) {
+                char c = name[i]; char c2 = '\0';
+                if ( c == '$' ) c = 'S';
+                else if ( c == '(' ) { c = 'F'; c2 = 'N'; }
+                kwname[j++] = c;
+                if ( c2 ) kwname[j++] = c2;
+            }
+            kwname[j] = '\0';
             char oct[4];
             snprintf( oct, sizeof(oct), "%0o", len );
-            fprintf( fpt, "#define KW_%s 0X%s%s\n", name, h1, h2  );
+            fprintf( fpt, "#define KW_%s 0X%s%s\n", kwname, h1, h2  );
             fprintf( fpn, "{ \"\\%s%s\", KW_%s },\n", oct, name,
-                name );
+                kwname );
         }
 
     }
