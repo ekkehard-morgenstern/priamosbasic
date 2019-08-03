@@ -20,6 +20,45 @@
         E-Mail: ekkehard@ekkehardmorgenstern.de
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
-#include "tokenizer.h"
+#ifndef KEYWORDS_H
+#define KEYWORDS_H  1
+
+#ifndef HASHTABLE_H
+#include "hashtable.h"
+#endif
+
+#define KW_NOTFOUND UINT16_C(0XFFFF)
+
+struct PredefKW {
+    const char* text;   // counted string (1st byte = length)
+    int         tok;
+};
+
+struct KW_Hashent : public HashEntry {
+
+    uint16_t tok;
+
+    KW_Hashent( const char* p, unsigned char len, uint16_t tok_ );
+
+};
+
+class Keywords {
+
+    HashTable ht;
+
+    static const PredefKW predef[];
+
+public:
+    Keywords();
+    ~Keywords();
+
+    void init();    // add predefined keywords
+
+    void add( const uint8_t* name, size_t nameLen, uint16_t tok );
+
+    uint16_t lookup( const uint8_t* name, size_t nameLen );
+
+};
 
 
+#endif

@@ -30,10 +30,10 @@ LXX=$(CXXCOMP) $(CPPFLAGS)
 
 
 INCFILES=bytebuffer.h exception.h hashtable.h interpreter.h \
-	tokenizer.h types.h variables.h 
+	tokenizer.h types.h variables.h keywords.h
 
 MODULES=bytebuffer.o exception.o hashtable.o interpreter.o \
-	tokenizer.o types.o variables.o
+	tokenizer.o types.o variables.o keywords.o
 
 APP_MODULES=main.o $(MODULES)
 TEST1_MODULES=testhashtable.o $(MODULES)
@@ -70,5 +70,7 @@ tokenizer.o: tokenizer.cpp $(INCFILES)
 types.o: types.cpp $(INCFILES)
 
 variables.o: variables.cpp $(INCFILES)
+
+keywords.o: keywords.cpp $(INCFILES)
 
 testhashtable.o: testhashtable.cpp $(INCFILES)
