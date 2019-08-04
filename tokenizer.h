@@ -41,10 +41,13 @@ class Tokenizer : public NonCopyable {
     const uint8_t* pos;
     const uint8_t* sourceEnd;
     size_t         sourceLen;
+    // T_IDENT
     uint8_t        ident[MAXIDENT];
     int            idLen;
+    // T_STRLIT
     uint8_t        strlit[MAXSTRLIT];
     int            slLen;
+    // T_NUMLIT
     int64_t        intVal;
     double         realVal;
     bool           isInt;
@@ -52,7 +55,13 @@ class Tokenizer : public NonCopyable {
 
     void readIdent( uint8_t b );
     
+    static int digitVal( uint8_t b, int base );
     static bool isDigit( uint8_t b, int base );
+    static int bitsPerDigit( int base );
+    static char* digitToBitGroup( char* buf, uint8_t b, int base );
+    static char* digitsToBitGroup( char* buf, const char* dig, int ndig, int base );
+    static char* digitsToHex( char* buf, int nbits );
+
     uint16_t readNum( const char* buf, int len, int base, bool haveDot,
         bool haveExp );
     uint16_t readNum( uint8_t b, int base );

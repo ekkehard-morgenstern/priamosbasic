@@ -53,7 +53,7 @@ void Tokenizer::readIdent( uint8_t b ) {
     idLen = len;
 }
 
-bool Tokenizer::isDigit( uint8_t b, int base ) {
+int Tokenizer::digitVal( uint8_t b, int base ) {
     uint8_t v;
     if ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) {
         v = b - UINT8_C(0X30);
@@ -62,21 +62,72 @@ bool Tokenizer::isDigit( uint8_t b, int base ) {
     } else if ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) {
         v = ( b - UINT8_C(0X61) ) + UINT8_C(10);
     } else {
-        return false;
+        return -1;
     }
-    if ( (int) v >= base ) return false;
-    return true;
+    if ( (int) v >= base ) return -1;
+    return (int) v;
+}
+
+bool Tokenizer::isDigit( uint8_t b, int base ) {
+    return digitVal( b, base ) >= 0;
+}
+
+int Tokenizer::bitsPerDigit( int base ) {
+    int nBits;
+    switch ( base ) {
+        case 2:     nBits = 1; break;
+        case 8:     nBits = 3; break;
+        case 16:    nBits = 4; break;
+        default:    return -1;
+    }
+    return nBits;
+}
+
+char* Tokenizer::digitToBitGroup( char* buf, uint8_t b, int base ) {
+    int v = digitVal( b, base );
+    if ( v < 0 ) return 0;
+    int digitBits = bitsPerDigit( base );
+    char* end = &buf[digitBits];
+    while ( digitBits > 0 ) {
+        int b = v & 1; v >>= 1;
+        buf[ --digitBits ] = '0' + b;
+    }
+    return end;
+}
+
+char* Tokenizer::digitsToBitGroup( char* buf, const char* dig, int ndig, int base ) {
+    while ( ndig ) {
+        buf = digitToBitGroup( buf, *dig, base );
+        if ( buf == 0 ) return 0;
+        --ndig; ++dig;
+    }
+    return buf;
+}
+
+char* Tokenizer::digitsToHex( char* buf, int nbits ) {
+    char* out = buf;
+    while ( nbits ) {
+        uint8_t b3 = buf[0] - '0';
+        uint8_t b2 = buf[1] - '0';
+        uint8_t b1 = buf[2] - '0';
+        uint8_t b0 = buf[3] - '0';
+        b3 <<= 3; b2 <<= 2; b1 <<= 1;
+        uint8_t b  = b3 | b2 | b1 | b0;
+        *out++ = "0123456789ABCDEF" [ b ];
+        buf += 4; nbits -= 4;
+    }
+    return out;
 }
 
 uint16_t Tokenizer::readNum( const char* buf, int len, int base, 
     bool haveDot, bool haveExp ) {
     if ( !haveDot && !haveExp ) {
         char* endPtr = 0; errno = 0;
-#if ULONG_MAX == 18446744073709551615UL
+        #if ULONG_MAX == 18446744073709551615UL
         uint64_t v = strtoul( buf, &endPtr, base );
-#else
+        #else
         uint64_t v = strtoull( buf, &endPtr, base );
-#endif
+        #endif
         if ( errno != 0 ) return T_NUMBAD;
         if ( (const char*) endPtr != buf + len ) return T_NUMBAD;
         if ( (int64_t) v < 0 ) return T_NUMBAD;
@@ -92,13 +143,6 @@ uint16_t Tokenizer::readNum( const char* buf, int len, int base,
     }
     // floating-point conversion for non base 10 numbers
     // bases 2, 8 and 16 can easily be converted into bit patterns
-    int bitsPerDigit;
-    switch ( base ) {
-        case 2:     bitsPerDigit = 1; break;
-        case 8:     bitsPerDigit = 3; break;
-        case 16:    bitsPerDigit = 4; break;
-        default:    return T_INTERR;
-    }
     int preDotDigits = 0, postDotDigits = 0, dotPos = -1, expPos = -1;
     if ( haveDot ) {
         const char* p = buf;
@@ -120,7 +164,59 @@ uint16_t Tokenizer::readNum( const char* buf, int len, int base,
         if ( haveExp ) expPos = preDotDigits;
     }
     printf( "%d %d %d %d\n", preDotDigits, postDotDigits, dotPos, expPos );
-    
+    char buf2[NUMBUFSZ*4]; int pos = 0;
+    buf2[pos++] = '0';
+    buf2[pos  ] = 'X';
+    // transcribe digits into hexadecimal form, beginning with digits before dot
+    char* endPtr = 0; errno = 0;
+    #if ULONG_MAX == 18446744073709551615UL
+    uint64_t v = strtoul( buf, &endPtr, base );
+    #else
+    uint64_t v = strtoull( buf, &endPtr, base );
+    #endif
+    if ( errno != 0 ) return T_NUMBAD;
+    if ( (const char*) endPtr != buf + preDotDigits ) return T_NUMBAD;
+    if ( (int64_t) v < 0 ) return T_NUMBAD;
+    #if ULONG_MAX == 18446744073709551615UL
+    snprintf( &buf2[2], NUMBUFSZ*4-2, "%lX", v );
+    #else
+    snprintf( &buf2[2], NUMBUFSZ*4-2, "%LX", v );
+    #endif
+    pos = (int) strlen(buf2);
+    if ( haveDot ) buf2[pos++] = '.';
+    if ( postDotDigits ) {
+        char* start = &buf2[pos];
+        char* end = digitsToBitGroup( start, &buf[dotPos+1], postDotDigits, base );
+        if ( end == 0 ) return T_INTERR;
+        int nbits = (int)( end - start );
+        // pad to 4 digit alignment
+        while ( nbits & 3 ) {
+            *end++ = '0'; ++nbits;
+        }
+        *end = '\0';
+        printf( "%s\n", buf2 );
+        // convert binary digits to hex
+        end = digitsToHex( start, nbits );
+        pos = end - &buf2[0];
+    }
+    if ( haveExp ) {
+        buf2[pos++] = 'P';
+        // library expects exponent to be in decimal form -- comply
+        errno = 0;
+        long ex = strtol( &buf[expPos+1], 0, base );
+        if ( errno != 0 ) return T_NUMBAD;
+        // need to correct exponent, since base 2 is expected
+        int mult = bitsPerDigit( base ); ex *= mult;
+        snprintf( &buf2[pos], NUMBUFSZ*4-pos, "%ld", ex );
+        pos = strlen(buf2);
+    }
+    buf2[pos] = '\0';
+    printf( "%s\n", buf2 );
+    double v2 = strtod( buf2, 0 );
+    printf( "%g\n", v2 );
+
+
+
     return T_UNIMPL;
 }
 
