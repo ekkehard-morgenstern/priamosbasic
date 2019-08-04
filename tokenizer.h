@@ -58,8 +58,10 @@ class Tokenizer : public NonCopyable {
     static int digitVal( uint8_t b, int base );
     static bool isDigit( uint8_t b, int base );
     static int bitsPerDigit( int base );
-    static char* digitToBitGroup( char* buf, uint8_t b, int base );
-    static char* digitsToBitGroup( char* buf, const char* dig, int ndig, int base );
+    static char* digitToBitGroup( char* buf, char* bufEnd, uint8_t b, 
+        int base );
+    static char* digitsToBitGroup( char* buf, char* bufEnd, 
+        const char* dig, int ndig, int base );
     static char* digitsToHex( char* buf, int nbits );
 
     uint16_t readNum( const char* buf, int len, int base, bool haveDot,
@@ -80,6 +82,12 @@ public:
     // only valid for T_STRLIT:
     inline const uint8_t* getStrLit() const { return strlit; }
     inline size_t getStrLitLen() const { return slLen; }
+
+    // only valid for T_NUMLIT
+    inline bool numIsInt() const { return isInt; }
+    inline int64_t numIVal() const { return intVal; }
+    inline double numRVal() const { return realVal; }
+    inline int numBase_() const { return numBase; }
 
 
 };

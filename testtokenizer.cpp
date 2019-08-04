@@ -40,6 +40,14 @@ int main( int argc, char** argv ) {
             } else if ( tok == T_STRLIT ) {
                 printf( "strlit '%-*.*s'\n", (int) t.getStrLitLen(),
                     (int) t.getStrLitLen(), t.getStrLit() );
+            } else if ( tok == T_NUMLIT ) {
+                if ( t.numIsInt() ) {
+                    printf( "numlit %" PRId64 " base %d\n", 
+                        t.numIVal(), t.numBase_() );
+                } else {
+                    printf( "numlit %g base %d\n", t.numRVal(), 
+                        t.numBase_() );
+                }
             }
         }
 

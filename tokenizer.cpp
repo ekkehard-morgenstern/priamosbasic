@@ -83,11 +83,13 @@ int Tokenizer::bitsPerDigit( int base ) {
     return nBits;
 }
 
-char* Tokenizer::digitToBitGroup( char* buf, uint8_t b, int base ) {
+char* Tokenizer::digitToBitGroup( char* buf, char* bufEnd, uint8_t b, 
+    int base ) {
     int v = digitVal( b, base );
     if ( v < 0 ) return 0;
     int digitBits = bitsPerDigit( base );
     char* end = &buf[digitBits];
+    if ( end > bufEnd ) return 0;
     while ( digitBits > 0 ) {
         int b = v & 1; v >>= 1;
         buf[ --digitBits ] = '0' + b;
@@ -95,9 +97,10 @@ char* Tokenizer::digitToBitGroup( char* buf, uint8_t b, int base ) {
     return end;
 }
 
-char* Tokenizer::digitsToBitGroup( char* buf, const char* dig, int ndig, int base ) {
+char* Tokenizer::digitsToBitGroup( char* buf, char* bufEnd, const char* dig,
+     int ndig, int base ) {
     while ( ndig ) {
-        buf = digitToBitGroup( buf, *dig, base );
+        buf = digitToBitGroup( buf, bufEnd, *dig, base );
         if ( buf == 0 ) return 0;
         --ndig; ++dig;
     }
@@ -163,8 +166,8 @@ uint16_t Tokenizer::readNum( const char* buf, int len, int base,
         preDotDigits = (int)( p - buf );
         if ( haveExp ) expPos = preDotDigits;
     }
-    printf( "%d %d %d %d\n", preDotDigits, postDotDigits, dotPos, expPos );
-    char buf2[NUMBUFSZ*4]; int pos = 0;
+    char buf2[NUMBUFSZ*4+1]; int pos = 0;
+    char* buf2End = &buf2[NUMBUFSZ*4];
     buf2[pos++] = '0';
     buf2[pos  ] = 'X';
     // transcribe digits into hexadecimal form, beginning with digits before dot
@@ -186,7 +189,8 @@ uint16_t Tokenizer::readNum( const char* buf, int len, int base,
     if ( haveDot ) buf2[pos++] = '.';
     if ( postDotDigits ) {
         char* start = &buf2[pos];
-        char* end = digitsToBitGroup( start, &buf[dotPos+1], postDotDigits, base );
+        char* end = digitsToBitGroup( start, buf2End, &buf[dotPos+1],
+            postDotDigits, base );
         if ( end == 0 ) return T_INTERR;
         int nbits = (int)( end - start );
         // pad to 4 digit alignment
@@ -194,7 +198,6 @@ uint16_t Tokenizer::readNum( const char* buf, int len, int base,
             *end++ = '0'; ++nbits;
         }
         *end = '\0';
-        printf( "%s\n", buf2 );
         // convert binary digits to hex
         end = digitsToHex( start, nbits );
         pos = end - &buf2[0];
@@ -211,13 +214,13 @@ uint16_t Tokenizer::readNum( const char* buf, int len, int base,
         pos = strlen(buf2);
     }
     buf2[pos] = '\0';
-    printf( "%s\n", buf2 );
+    errno = 0;
     double v2 = strtod( buf2, 0 );
-    printf( "%g\n", v2 );
-
-
-
-    return T_UNIMPL;
+    if ( errno != 0 ) return T_NUMBAD;
+    realVal = v2;
+    isInt   = false;
+    numBase = base;
+    return T_NUMLIT;
 }
 
 uint16_t Tokenizer::readNum( uint8_t b, int base ) {
@@ -293,7 +296,6 @@ uint16_t Tokenizer::readNum( uint8_t b, int base ) {
         haveExp = true;        
     }
     numBuf[nbPos] = '\0';
-    printf( "%s\n", numBuf );
     return readNum( numBuf, nbPos, base, haveDot, haveExp );
 }
 
