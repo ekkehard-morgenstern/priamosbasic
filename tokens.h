@@ -204,10 +204,11 @@
 
 #define T_SYNERR        0XFFFF  // general syntax error
 #define T_UNIMPL        0XFFFE  // unimplemented feature
-#define T_STRTRM        0XFFFD  // string not terminated
-#define T_STRLNG        0XFFFC  // string too long
-#define T_NUMLNG        0XFFFB  // numeric literal too long
-#define T_NUMBAD        0XFFFA  // bad number
+#define T_INTERR        0XFFFD  // internal error
+#define T_STRTRM        0XFFFC  // string not terminated
+#define T_STRLNG        0XFFFB  // string too long
+#define T_NUMLNG        0XFFFA  // numeric literal too long
+#define T_NUMBAD        0XFFF9  // bad number
 
 
 #endif

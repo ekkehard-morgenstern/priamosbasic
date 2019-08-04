@@ -68,11 +68,67 @@ bool Tokenizer::isDigit( uint8_t b, int base ) {
     return true;
 }
 
+uint16_t Tokenizer::readNum( const char* buf, int len, int base, 
+    bool haveDot, bool haveExp ) {
+    if ( !haveDot && !haveExp ) {
+        char* endPtr = 0; errno = 0;
+#if ULONG_MAX == 18446744073709551615UL
+        uint64_t v = strtoul( buf, &endPtr, base );
+#else
+        uint64_t v = strtoull( buf, &endPtr, base );
+#endif
+        if ( errno != 0 ) return T_NUMBAD;
+        if ( (const char*) endPtr != buf + len ) return T_NUMBAD;
+        if ( (int64_t) v < 0 ) return T_NUMBAD;
+        intVal  = v;
+        isInt   = true;
+        numBase = base;
+        return T_NUMLIT;
+    } else if ( base == 10 ) {  // base 10 floating-point
+        realVal = atof( buf );
+        isInt   = false;
+        numBase = 10;
+        return T_NUMLIT;
+    }
+    // floating-point conversion for non base 10 numbers
+    // bases 2, 8 and 16 can easily be converted into bit patterns
+    int bitsPerDigit;
+    switch ( base ) {
+        case 2:     bitsPerDigit = 1; break;
+        case 8:     bitsPerDigit = 3; break;
+        case 16:    bitsPerDigit = 4; break;
+        default:    return T_INTERR;
+    }
+    int preDotDigits = 0, postDotDigits = 0, dotPos = -1, expPos = -1;
+    if ( haveDot ) {
+        const char* p = buf;
+        while ( isDigit( *p, base ) ) ++p;
+        // p is on dot now
+        preDotDigits = (int)( p - buf );
+        if ( *p != '.' ) return T_INTERR;
+        dotPos = preDotDigits;
+        ++p; const char* p0 = p;
+        while ( isDigit( *p, base ) ) ++p;
+        // p is on either exponent specifier or '\0' now
+        postDotDigits = (int)( p - p0 );
+        if ( haveExp ) expPos = (int)( p - buf );
+    } else {
+        const char* p = buf;
+        while ( isDigit( *p, base ) ) ++p;
+        // p is on either exponent specifier or '\0' now
+        preDotDigits = (int)( p - buf );
+        if ( haveExp ) expPos = preDotDigits;
+    }
+    printf( "%d %d %d %d\n", preDotDigits, postDotDigits, dotPos, expPos );
+    
+    return T_UNIMPL;
+}
+
 uint16_t Tokenizer::readNum( uint8_t b, int base ) {
     char numBuf[NUMBUFSZ+1];
     int nbPos = 0; bool haveDot = false;
-    if ( b == UINT8_C(0X2E) ) {
-        numBuf[nbPos++] = UINT8_C(0X30);
+    if ( b == UINT8_C(0X2E) ) { // .
+        numBuf[nbPos++] = UINT8_C(0X30);    // 0
         haveDot = true;
     }
     do {    // read digits (before/after dot)
@@ -81,7 +137,7 @@ uint16_t Tokenizer::readNum( uint8_t b, int base ) {
         if ( ++pos >= sourceEnd ) break;
         b = *pos;
     } while ( isDigit( b, base ) );
-    if ( !haveDot && b == UINT8_C(0X2E) ) do {
+    if ( !haveDot && b == UINT8_C(0X2E) ) do {  // .
         // store dot
         haveDot = true;
         if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
@@ -90,7 +146,7 @@ uint16_t Tokenizer::readNum( uint8_t b, int base ) {
         if ( ++pos >= sourceEnd ) {
             // attempt to store at least one zero
             if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
-            numBuf[nbPos++] = UINT8_C(0X30);
+            numBuf[nbPos++] = UINT8_C(0X30);    // 0
             break;
         }
         // otherwise, check if there's a digit after the dot
@@ -106,12 +162,13 @@ uint16_t Tokenizer::readNum( uint8_t b, int base ) {
         } else {
             // no, store at least a zero
             if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
-            numBuf[nbPos++] = UINT8_C(0X30);
+            numBuf[nbPos++] = UINT8_C(0X30);    // 0
         }        
     } while(0);
     // check for exponent (P for bases > 10, E otherwise)
-    if ( ( base > 10 && ( b == UINT8_C(0X50) || 
-        b == UINT8_C(0X70) ) ) || ( b == UINT8_C(0X45) ||
+    bool haveExp = false;
+    if ( ( base > 10 && ( b == UINT8_C(0X50) || // P p
+        b == UINT8_C(0X70) ) ) || ( b == UINT8_C(0X45) ||   // E e
         b == UINT8_C(0X65) ) ) {
         if ( nbPos >= NUMBUFSZ ) return T_NUMLNG;
         numBuf[nbPos++] = b;
@@ -136,11 +193,19 @@ uint16_t Tokenizer::readNum( uint8_t b, int base ) {
             numBuf[nbPos++] = b;
             if ( ++pos >= sourceEnd ) break;
             b = *pos;
-        } while ( isDigit( b, base ) );        
+        } while ( isDigit( b, base ) );
+        haveExp = true;        
     }
     numBuf[nbPos] = '\0';
     printf( "%s\n", numBuf );
-    return T_NUMLIT;
+    return readNum( numBuf, nbPos, base, haveDot, haveExp );
+}
+
+uint16_t Tokenizer::readNum( int base ) {
+    if ( pos >= sourceEnd ) return T_NUMBAD;
+    uint8_t b = *pos;
+    if ( !isDigit( b, base ) && b != UINT8_C(0X2E) ) return T_NUMBAD;
+    return readNum( b, base );
 }
 
 uint16_t Tokenizer::nextTok() {
@@ -150,23 +215,26 @@ uint16_t Tokenizer::nextTok() {
     if ( pos >= sourceEnd ) return T_EOL;
 
     b = *pos;
-    if ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||
-        ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ) {
+    if ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||    // A..Z
+        ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ) {    // a..z
         readIdent( b );
         t = Keywords::getInstance().lookup( ident, idLen );
         if ( t != KW_NOTFOUND ) return t;
         return T_IDENT;
     }
 
-    if ( b == UINT8_C(0X20) || b == UINT8_C(0X08) ) {
+    if ( b == UINT8_C(0X20) || b == UINT8_C(0X08) || 
+         b == UINT8_C(0X0D) || b == UINT8_C(0X0A) ) {   // SP HT CR LF
+        // CR, LF should not normally occur within a text line
         do {
             if ( ++pos >= sourceEnd ) break;
             b = *pos;
-        } while ( b == UINT8_C(0X20) || b == UINT8_C(0X08) );
+        } while ( b == UINT8_C(0X20) || b == UINT8_C(0X08) || 
+         b == UINT8_C(0X0D) || b == UINT8_C(0X0A) );
         return T_SPC;
     }
 
-    if ( b == UINT8_C(0X22) ) {
+    if ( b == UINT8_C(0X22) ) { // "
         slLen = 0;
         do {
             if ( ++pos >= sourceEnd ) return T_STRTRM;
@@ -178,9 +246,24 @@ uint16_t Tokenizer::nextTok() {
         return T_STRLIT;
     }
 
-    if ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) {
-        readNum( b, 10 );
-        return T_NUMLIT;
+    if ( ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) || // 0..9
+        b == UINT8_C(0X2E) ) { // .
+        return readNum( b, 10 );
+    }
+
+    if ( b == UINT8_C(0X24) ) { // $
+        ++pos;
+        return readNum( 16 );
+    }
+
+    if ( b == UINT8_C(0X40) ) { // @
+        ++pos;
+        return readNum( 8 );
+    }
+
+    if ( b == UINT8_C(0X25) ) { // %
+        ++pos;
+        return readNum( 2 );
     }
 
     return T_UNIMPL;
