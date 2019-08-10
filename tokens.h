@@ -133,6 +133,8 @@
 #define KW_NEXTFN 0X062B
 #define KW_PREVFN 0X062C
 #define KW_CELLSFN 0X062D
+#define KW_INC 0X062E
+#define KW_DEC 0X062F
 #define KW_SUB 0X0B00
 #define KW_FUNC 0X0B01
 #define KW_BASE 0X0B02
@@ -146,6 +148,9 @@
 #define KW_LINE 0X0B0A
 #define KW_IN 0X0B0B
 #define KW_LABEL 0X0B0C
+#define KW_THEN 0X0B0D
+#define KW_TO 0X0B0E
+#define KW_DOWNTO 0X0B0F
 #define KW_AND 0X0F03
 #define KW_OR 0X0F04
 #define KW_XOR 0X0F05
@@ -153,10 +158,10 @@
 #define KW_NAND 0X0F07
 #define KW_NOR 0X0F08
 #define KW_XNOR 0X0F09
-#define KW_EQV 0X0F10
-#define KW_NEQV 0X0F11
-#define KW_SHL 0X0F12
-#define KW_SHR 0X0F13
+#define KW_EQV 0X0F0A
+#define KW_NEQV 0X0F0B
+#define KW_SHL 0X0F0C
+#define KW_SHR 0X0F0D
 
 #define T_EOL           0X00
 #define T_IDENT         0X05
@@ -198,6 +203,7 @@
 #define T_PRINT         0X3F
 #define T_LBRACK        0X5B
 #define T_RBRACK        0X5D
+#define T_POW           0X5E
 #define T_LBRACE        0X7B
 #define T_LEXT          0X7C
 #define T_RBRACE        0X7D

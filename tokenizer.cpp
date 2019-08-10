@@ -35,18 +35,19 @@ Tokenizer::~Tokenizer() {
 void Tokenizer::readIdent( uint8_t b ) {
     int len = 0;
     do {
+        if ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) b -= UINT8_C(0X20);
         if ( len < MAXIDENT-2 ) ident[len++] = b;
         if ( ++pos >= sourceEnd ) break;
         b = *pos;
-    } while ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||
-        ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ||
-        ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) );
-    if ( b == '$' || b == '%' ) do {
+    } while ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||   // A..Z
+        ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ||         // a..z
+        ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) );         // 0..9
+    if ( b == UINT8_C(0X24) || b == UINT8_C(0X25) ) do {    // $, %
         ident[len++] = b;
         if ( ++pos >= sourceEnd ) break;
         b = *pos;
     } while (0);
-    if ( b == '(' ) {
+    if ( b == UINT8_C(0X28) ) { // (
         ident[len++] = b;
         ++pos;
     }
@@ -310,9 +311,62 @@ uint16_t Tokenizer::nextTok() {
 
     uint8_t b; uint16_t t;
 
+REDO:
+
     if ( pos >= sourceEnd ) return T_EOL;
 
     b = *pos;
+
+    switch ( b ) {
+        case UINT8_C(0X21): ++pos; return T_PLING;      // !
+        case UINT8_C(0X24): ++pos; return readNum( 16 );    // $
+        case UINT8_C(0X25): ++pos; return readNum( 2 ); // %
+        case UINT8_C(0X27): ++pos; return T_REM;        // ', REM
+        case UINT8_C(0X28): ++pos; return T_LPAREN;     // (
+        case UINT8_C(0X29): ++pos; return T_RPAREN;     // )
+        case UINT8_C(0X2A): ++pos; 
+            if ( pos >= sourceEnd ) return T_SYNERR;
+            b = *pos;
+            if ( b == UINT8_C(0X2A) ) { ++pos; return T_POW; }  // **, ^
+            return T_TIMES;                             // *
+        case UINT8_C(0X2B): ++pos; 
+            if ( pos >= sourceEnd ) return T_SYNERR;
+            b = *pos;
+            if ( b == UINT8_C(0X2B) ) { ++pos; return KW_INC; } // ++, INC
+            return T_PLUS;                              // +
+        case UINT8_C(0X2C): ++pos; return T_COMMA;      // ,
+        case UINT8_C(0X2D): ++pos; 
+            if ( pos >= sourceEnd ) return T_SYNERR;
+            b = *pos;
+            if ( b == UINT8_C(0X2D) ) { ++pos; return KW_DEC; } // --, DEC
+            return T_MINUS;                             // -
+        case UINT8_C(0X2F): ++pos; return T_DIV;        // /
+        case UINT8_C(0X3A): ++pos; return T_COLON;      // :
+        case UINT8_C(0X3B): ++pos; return T_SEMIC;      // ;
+        case UINT8_C(0X3C): ++pos;
+            if ( pos >= sourceEnd ) return T_SYNERR;
+            b = *pos;
+            if ( b == UINT8_C(0X3D) ) { ++pos; return T_LE; } // <=
+            if ( b == UINT8_C(0X3C) ) { ++pos; return KW_SHL; } // <<, SHL
+            return T_LT;                                // <
+        case UINT8_C(0X3D): ++pos;  return T_EQ;        // =
+        case UINT8_C(0X3E): ++pos;
+            if ( pos >= sourceEnd ) return T_SYNERR;
+            b = *pos;
+            if ( b == UINT8_C(0X3D) ) { ++pos; return T_GE; } // >=
+            if ( b == UINT8_C(0X3E) ) { ++pos; return KW_SHR; } // >>, SHR
+            return T_GT;                                // >
+        case UINT8_C(0X3F): ++pos; return T_PRINT;      // ?, PRINT
+        case UINT8_C(0X40): ++pos; return readNum( 8 ); // @
+        case UINT8_C(0X5B): ++pos; return T_LBRACK;     // [
+        case UINT8_C(0X5D): ++pos; return T_RBRACK;     // ]
+        case UINT8_C(0X5E): ++pos; return T_POW;        // ^, **
+        case UINT8_C(0X7B): ++pos; return T_LBRACE;     // {
+        case UINT8_C(0X7C): ++pos; return T_LEXT;       // |
+        case UINT8_C(0X7D): ++pos; return T_RBRACE;     // }
+        default: break;
+    }
+
     if ( ( b >= UINT8_C(0X41) && b <= UINT8_C(0X5A) ) ||    // A..Z
         ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ) {    // a..z
         readIdent( b );
@@ -329,7 +383,7 @@ uint16_t Tokenizer::nextTok() {
             b = *pos;
         } while ( b == UINT8_C(0X20) || b == UINT8_C(0X08) || 
          b == UINT8_C(0X0D) || b == UINT8_C(0X0A) );
-        return T_SPC;
+        goto REDO;
     }
 
     if ( b == UINT8_C(0X22) ) { // "
@@ -349,22 +403,7 @@ uint16_t Tokenizer::nextTok() {
         return readNum( b, 10 );
     }
 
-    if ( b == UINT8_C(0X24) ) { // $
-        ++pos;
-        return readNum( 16 );
-    }
-
-    if ( b == UINT8_C(0X40) ) { // @
-        ++pos;
-        return readNum( 8 );
-    }
-
-    if ( b == UINT8_C(0X25) ) { // %
-        ++pos;
-        return readNum( 2 );
-    }
-
-    return T_UNIMPL;
+    return T_SYNERR;
 }
 
 

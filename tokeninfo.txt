@@ -148,6 +148,8 @@ $06 $2A                 NIL                     special value "NIL" (0 PTR)
 $06 $2B                 NEXT(                   return next node in list
 $06 $2C                 PREV(                   return previous node in list
 $06 $2D                 CELLS(                  return number of bytes occupied by specified number of memory cells
+$06 $2E                 INC                     increment variable
+$06 $2F                 DEC                     decrement variable
 
 $07 <n> <text...>       (STRLIT)                string literal "..."
 $08 <val.lo> <val.hi>   (UINT16)                line number
@@ -195,6 +197,9 @@ $0B $09                 PTR <range | varlist>   define PTR variables
 $0B $0A                 LINE                    introduce a LINE INPUT statement
 $0B $0B                 IN                      IN keyword used in FOREACH spec
 $0B $0C                 LABEL <name>            define a label anywhere (without trailing colon)
+$0B $0D                 THEN                    THEN keyword used for IF/UNLESS
+$0B $0E                 TO                      TO keyword used in FOR
+$0B $0F                 DOWNTO                  DOWNTO keyword used in FOR
 
 
 $0C <n> <name...>       (LABEL)                 label (any user-defined name at the beginning of a
@@ -213,10 +218,10 @@ $0F $06                 NOT                     binary or logical NOT
 $0F $07                 NAND                    binary or logical NAND
 $0F $08                 NOR                     binary or logical NOR
 $0F $09                 XNOR                    binary or logical XNOR
-$0F $10                 EQV                     binary or logical EQV
-$0F $11                 NEQV                    binary or logical NEQV
-$0F $12                 SHL                     binary shift left
-$0F $13                 SHR                     binary shift right
+$0F $0A                 EQV                     binary or logical EQV
+$0F $0B                 NEQV                    binary or logical NEQV
+$0F $0C                 SHL                     binary shift left
+$0F $0D                 SHR                     binary shift right
 
 
 quick integer:
@@ -230,20 +235,20 @@ $21                     !                       pling operator
 $27 <n> <text...>       '                       REM
 $28                     (                       left parenthesis
 $29                     )                       right parenthesis
-$2A                     *                       times
-$2B                     +                       plus
+$2A                     *                       times (** = pow ^)
+$2B                     +                       plus (++ = INC)
 $2C                     ,                       comma
-$2D                     -                       minus
+$2D                     -                       minus (-- = DEC)
 $2F                     /                       division
 $3A                     :                       colon (command separator)
 $3B                     ;                       semicolon
-$3C                     <                       less than
+$3C                     <                       less than (<< = SHL)
 $3D                     =                       equal
-$3E                     >                       greater than
+$3E                     >                       greater than (>> = SHR)
 $3F                     ?                       PRINT
 $5B                     [                       left bracket
 $5D                     ]                       right bracket
-$5E                     ^                       power 
+$5E                     ^                       power  (also: **)
 $7B                     {                       left brace
 $7C <n> <name...>       |<name>                 (language extension)
 $7D                     }                       right brace

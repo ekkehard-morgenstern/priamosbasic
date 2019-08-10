@@ -138,6 +138,8 @@ const PredefKW Keywords::predef[] = {
     { "\5NEXT(", KW_NEXTFN },
     { "\5PREV(", KW_PREVFN },
     { "\6CELLS(", KW_CELLSFN },
+    { "\3INC", KW_INC },
+    { "\3DEC", KW_DEC },
     { "\3SUB", KW_SUB },
     { "\4FUNC", KW_FUNC },
     { "\4BASE", KW_BASE },
@@ -151,6 +153,9 @@ const PredefKW Keywords::predef[] = {
     { "\4LINE", KW_LINE },
     { "\2IN", KW_IN },
     { "\5LABEL", KW_LABEL },
+    { "\4THEN", KW_THEN },
+    { "\2TO", KW_TO },
+    { "\6DOWNTO", KW_DOWNTO },
     { "\3AND", KW_AND },
     { "\2OR", KW_OR },
     { "\3XOR", KW_XOR },
@@ -162,6 +167,9 @@ const PredefKW Keywords::predef[] = {
     { "\4NEQV", KW_NEQV },
     { "\3SHL", KW_SHL },
     { "\3SHR", KW_SHR },
+// ------------------------------------------
+    { "\5PRINT", T_PRINT },
+    { "\3REM", T_REM },
     { 0, 0 }
 };
 
