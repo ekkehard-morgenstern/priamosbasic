@@ -508,10 +508,56 @@ bool Tokenizer::storeReal() {
     return outBuf.writeReal64( realVal );
 }
 
+bool Tokenizer::storeLabel() {
+    if ( !outBuf.writeByte( T_LABEL ) ) return false;
+    if ( !outBuf.writeByte( (uint8_t) idLen ) ) return false;
+    return outBuf.writeBlock( ident, idLen );
+}
+
+bool Tokenizer::storeIdent() {
+    if ( !outBuf.writeByte( T_IDENT ) ) return false;
+    if ( !outBuf.writeByte( (uint8_t) idLen ) ) return false;
+    return outBuf.writeBlock( ident, idLen );
+}
+
+bool Tokenizer::storeStrLit() {
+    if ( !outBuf.writeByte( T_STRLIT ) ) return false;
+    if ( !outBuf.writeByte( (uint8_t) slLen ) ) return false;
+    return outBuf.writeBlock( strlit, slLen );
+}
+
+bool Tokenizer::identDecorated() const {
+    if ( idLen > 0 ) {
+        uint8_t b = ident[idLen-1];
+        if ( b == UINT8_C(0X24) || b == UINT8_C(0X25) || b == UINT8_C(0X28) ) { // $, %, (
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Tokenizer::locationToken( uint16_t tok ) {
+    switch ( tok ) {
+        case KW_GOTO: case KW_GOSUB: case KW_THEN: case KW_RUN: case KW_RETURN:
+        case KW_RESTORE: case KW_CONT: case KW_LIST: case KW_DELETE:
+            return true;
+    }
+    return false;
+}
+
+bool Tokenizer::locationExprToken( uint16_t tok ) {
+    switch ( tok ) {
+        case KW_LIST: case KW_DELETE:
+            return true;
+    }
+    return false;
+}
+
 uint16_t Tokenizer::tokenize() {
 
     bool first = true;
-
+    uint16_t prevTok = T_EOL, stickyTok = T_EOL;
+    
     for (;;) {
         uint16_t tok = nextTok();
         if ( tok == T_EOL || tok >= UINT16_C(0XFF00) ) {
@@ -519,22 +565,66 @@ uint16_t Tokenizer::tokenize() {
                 if ( !outBuf.writeByte( T_EOL ) ) return T_MEMERR;
             }
             return tok;
-        }
 
-        if ( first && tok == T_NUMLIT && isInt && intVal >= 0 &&
+        } else if ( first && tok == T_NUMLIT && isInt && intVal >= 0 &&
             intVal <= (int64_t) UINT24_MAX && numBase == 10 ) {
             // line number
             if ( !storeLineNo() ) return T_MEMERR;
+            tok = T_LINENO;
+
         } else if ( first && tok == T_NUMLIT ) {
             return T_SYNERR;
+
         } else if ( tok == T_NUMLIT && isInt ) {
-            if ( !storeInt() ) return T_MEMERR;
+            // after certain tokens, a number is a line number
+            if ( locationToken( prevTok ) || stickyTok != T_EOL ) {
+                if ( intVal > (int64_t) UINT24_MAX || numBase != 10 ) return T_SYNERR;
+                if ( !storeLineNo() ) return T_MEMERR;
+                tok = T_LINENO;
+                if ( locationExprToken( prevTok ) ) stickyTok = tok;
+
+            } else {
+                if ( !storeInt() ) return T_MEMERR;
+            }
+
         } else if ( tok == T_NUMLIT ) {
             if ( !storeReal() ) return T_MEMERR;
+
+        } else if ( first && tok == T_IDENT ) {
+            // if followed by colon, might be label
+            if ( pos >= sourceEnd ) return T_SYNERR;
+            uint8_t b = *pos;
+            if ( b == UINT8_C(0X3A) ) {
+                ++pos;
+                if ( identDecorated() ) return T_SYNERR;
+                if ( !storeLabel() ) return T_MEMERR;
+                tok = T_LABEL;
+
+            } else {
+                if ( !storeIdent() ) return T_MEMERR;
+            }
+        } else if ( tok == T_IDENT && ( locationToken( prevTok ) || stickyTok != T_EOL ) ) {
+            // identifier after certain keywords is a label
+            if ( identDecorated() ) return T_SYNERR;
+            if ( !storeLabel() ) return T_MEMERR;
+            tok = T_LABEL;
+            if ( locationExprToken( prevTok ) ) stickyTok = tok;
+
+        } else if ( tok == T_STRLIT ) {
+            if ( first ) return T_SYNERR;
+            if ( !storeStrLit() ) return T_MEMERR;
+
+        } else {
+            if ( tok < UINT16_C(0X0100) ) {
+                if ( !outBuf.writeByte( (uint8_t) tok ) ) return T_MEMERR;
+            } else {
+                if ( !outBuf.writeToken( tok ) ) return T_MEMERR;
+            }
         }
 
-        // ... TBD ...
+        if ( tok == T_COLON ) stickyTok = T_EOL;
 
+        prevTok = tok;
         first = false;
     }
 

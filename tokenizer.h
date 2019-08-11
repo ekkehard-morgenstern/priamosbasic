@@ -80,6 +80,13 @@ class Tokenizer : public NonCopyable {
     bool storeLineNo();
     bool storeInt();
     bool storeReal();
+    bool storeLabel();
+    bool storeIdent();
+    bool storeStrLit();
+    bool identDecorated() const;
+
+    static bool locationToken( uint16_t tok );
+    static bool locationExprToken( uint16_t tok );
 
 public:
     Tokenizer( const uint8_t* source_, size_t sourceLen_ );

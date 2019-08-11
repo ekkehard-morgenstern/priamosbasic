@@ -39,9 +39,9 @@ $03 $02                 AGAIN [var | OUTER n]   redo innermost loop body or spec
 $03 $03                 LEAVE [var | OUTER n]   leave innermost loop or specified outer loop
 $03 $04                 BREAK                   break into debugger
 $03 $05                 ITERATE [var | OUTER n] iterate innermost loop or specified outer loop
-$03 $06                 CONT                    continue program
+$03 $06                 CONT [location]         continue program
 $03 $07                 STOP                    stop program
-$03 $08                 RESTORE [pos]           restore DATA pointer
+$03 $08                 RESTORE [location]      restore DATA pointer
 $03 $09                 READ <var-list>         read from DATA
 $03 $0A                 DATA <data-list>        specify data
 $03 $0B                 FOR <loop-spec>         begin loop
