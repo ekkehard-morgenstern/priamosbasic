@@ -151,36 +151,36 @@ $06 $2D                 CELLS(                  return number of bytes occupied 
 $06 $2E                 INC                     increment variable
 $06 $2F                 DEC                     decrement variable
 
-$07 <n> <text...>       (STRLIT)                string literal "..."
-$08 <val.lo> <val.hi>   (UINT16)                line number
+$07 <n> <text...>          (STRLIT)             string literal "..."
+$08 <val.hi> .. <val.lo>   (UINT24)             line number
 
 $09 $20 <val>                   (INT8)          single byte integer     (bin)
-$09 $21 <val.lo> <val.hi>       (INT16)         double byte integer     (bin)
-$09 $22 <val.lo> ... <val.hi>   (INT32)         four   byte integer     (bin)
-$09 $23 <val.lo> ... <val.hi>   (INT64)         eight  byte integer     (bin)
-$09 $2E <val.lo> ... <val.hi>   (INT32)         four   byte float/fixed (bin)
-$09 $2F <val.lo> ... <val.hi>   (INT64)         eight  byte float/fixed (bin)
+$09 $21 <val.hi> <val.lo>       (INT16)         double byte integer     (bin)
+$09 $22 <val.hi> ... <val.lo>   (INT32)         four   byte integer     (bin)
+$09 $23 <val.hi> ... <val.lo>   (INT64)         eight  byte integer     (bin)
+$09 $2E <val.hi> ... <val.lo>   (INT32)         four   byte float/fixed (bin)
+$09 $2F <val.hi> ... <val.lo>   (INT64)         eight  byte float/fixed (bin)
 
 $09 $40 <val>                   (INT8)          single byte integer     (dec) -- can also be encoded as $11 <val>
-$09 $41 <val.lo> <val.hi>       (INT16)         double byte integer     (dec)
-$09 $42 <val.lo> ... <val.hi>   (INT32)         four   byte integer     (dec)
-$09 $43 <val.lo> ... <val.hi>   (INT64)         eight  byte integer     (dec)
-$09 $4E <val.lo> ... <val.hi>   (INT32)         four   byte float/fixed (dec)
-$09 $4F <val.lo> ... <val.hi>   (INT64)         eight  byte float/fixed (dec)
+$09 $41 <val.hi> <val.lo>       (INT16)         double byte integer     (dec)
+$09 $42 <val.hi> ... <val.lo>   (INT32)         four   byte integer     (dec)
+$09 $43 <val.hi> ... <val.lo>   (INT64)         eight  byte integer     (dec)
+$09 $4E <val.hi> ... <val.lo>   (INT32)         four   byte float/fixed (dec)
+$09 $4F <val.hi> ... <val.lo>   (INT64)         eight  byte float/fixed (dec)
 
 $09 $F0 <val>                   (INT8)          single byte integer     (oct)
-$09 $F1 <val.lo> <val.hi>       (INT16)         double byte integer     (oct)
-$09 $F2 <val.lo> ... <val.hi>   (INT32)         four   byte integer     (oct)
-$09 $F3 <val.lo> ... <val.hi>   (INT64)         eight  byte integer     (oct)
-$09 $FE <val.lo> ... <val.hi>   (INT32)         four   byte float/fixed (oct)
-$09 $FF <val.lo> ... <val.hi>   (INT64)         eight  byte float/fixed (oct)
+$09 $F1 <val.hi> <val.hi> lo    (INT16)         double byte integer     (oct)
+$09 $F2 <val.hi> ... <val.lo>   (INT32)         four   byte integer     (oct)
+$09 $F3 <val.hi> ... <val.lo>   (INT64)         eight  byte integer     (oct)
+$09 $FE <val.hi> ... <val.lo>   (INT32)         four   byte float/fixed (oct)
+$09 $FF <val.hi> ... <val.lo>   (INT64)         eight  byte float/fixed (oct)
 
 $09 $80 <val>                   (INT8)          single byte integer     (hex)
-$09 $81 <val.lo> <val.hi>       (INT16)         double byte integer     (hex)
-$09 $82 <val.lo> ... <val.hi>   (INT32)         four   byte integer     (hex)
-$09 $83 <val.lo> ... <val.hi>   (INT64)         eight  byte integer     (hex)
-$09 $8E <val.lo> ... <val.hi>   (INT32)         four   byte float/fixed (hex)
-$09 $8F <val.lo> ... <val.hi>   (INT64)         eight  byte float/fixed (hex)
+$09 $81 <val.hi> <val.hi> lo    (INT16)         double byte integer     (hex)
+$09 $82 <val.hi> ... <val.lo>   (INT32)         four   byte integer     (hex)
+$09 $83 <val.hi> ... <val.lo>   (INT64)         eight  byte integer     (hex)
+$09 $8E <val.hi> ... <val.lo>   (INT32)         four   byte float/fixed (hex)
+$09 $8F <val.hi> ... <val.lo>   (INT64)         eight  byte float/fixed (hex)
 
 
 keywords that do not constitute a command if specified alone:

@@ -50,4 +50,14 @@ public:
 
 double getTime();
 
+union U_IntReal64 {
+    uint64_t    ival;
+    double      rval;
+};
+
+union U_IntReal32 {
+    uint32_t    ival;
+    float       rval;
+};
+
 #endif

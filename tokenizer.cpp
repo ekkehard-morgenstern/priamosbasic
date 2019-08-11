@@ -26,7 +26,7 @@
 
 Tokenizer::Tokenizer( const uint8_t* source_, size_t sourceLen_ ) 
     : source(source_), pos(source_), sourceEnd(source_+sourceLen_),
-      sourceLen(sourceLen_) {}
+      sourceLen(sourceLen_), outBuf( TOKBUFSZ ) {}
 
 Tokenizer::~Tokenizer() {
     source = pos = 0; sourceLen = 0;
@@ -406,4 +406,137 @@ REDO:
     return T_SYNERR;
 }
 
+bool Tokenizer::storeLineNo() {
+    if ( !outBuf.writeByte( T_LINENO ) ) return false;
+    return outBuf.writeLineNo( (uint32_t) intVal );
+}
+
+bool Tokenizer::storeInt() {
+    uint8_t loNyb;
+    if ( intVal <= INT8_MAX ) {
+        loNyb = NL_I8;
+    } else if ( intVal <= INT16_MAX ) {
+        loNyb = NL_I16;
+    } else if ( intVal <= INT32_MAX ) {
+        loNyb = NL_I32;
+    } else {
+        loNyb = NL_I64;
+    }
+    uint8_t hiNyb;
+    if ( numBase == 10 ) {
+        hiNyb = NH_DEC;
+    } else if ( numBase == 16 ) {
+        hiNyb = NH_HEX;
+    } else if ( numBase == 8 ) {
+        hiNyb = NH_OCT;
+    } else if ( numBase == 2 ) {
+        hiNyb = NH_BIN;
+    } else {
+        return false;
+    }
+    if ( loNyb == NL_I8 && hiNyb == NH_DEC ) {
+        // special encoding for single-byte integer
+        if ( !outBuf.writeByte( T_SBI ) ) return false;
+        return outBuf.writeByte( (int8_t) intVal );
+    }
+    if ( !outBuf.writeByte( T_NUMLIT ) ) return false;
+    if ( !outBuf.writeByte( hiNyb | loNyb ) ) return false;
+    if ( loNyb == NL_I8 ) {
+        return outBuf.writeByte( (uint8_t) intVal );
+    } else if ( loNyb == NL_I16 ) {
+        return outBuf.writeWord( (uint16_t) intVal );
+    } else if ( loNyb == NL_I32 ) {
+        return outBuf.writeDWord( (uint32_t) intVal );
+    } 
+    return outBuf.writeQWord( (uint64_t) intVal );
+}
+
+bool Tokenizer::storeReal() {
+    U_IntReal64 ir;
+    ir.rval = realVal;
+    // for IEEE double-precision format,
+    // 11 bits are for the exponent, and 52 bits are for the mantissa
+    int16_t  exp = (int16_t)( ( ir.ival >> UINT8_C(52) ) & 2047U );
+    uint64_t man = ir.ival & UINT64_C(0X000FFFFFFFFFFFFF);
+    bool     cnv = false;
+    bool     nan = false;
+    if ( exp == INT16_C(0) ) {
+        // signed zero (man==0) or subnormal (man!=0)
+        // zero can be converted and subnormals might
+        cnv = true;
+    } else if ( exp == INT16_C(2047) ) {
+        // infinity (man==0) and NaN (man!=0)
+        // can both be converted
+        cnv = true; if ( man ) nan = true;
+    } else {
+        // rebase exponent to correct base
+        exp -= INT16_C(1023);
+        // check if exponent is within single-precision range
+        if ( exp >= INT16_C(-126) && exp <= INT16_C(127) ) {
+            cnv = true;
+        }
+    }
+    // check if the mantissa uses the lower 52-23 = 29 bits
+    // which would mean it requires more precision (applies to
+    // subnormals and regular numbers)
+    if ( cnv && !nan ) {
+        if ( man & UINT32_C(0X1FFFFFFF) ) cnv = false;
+    }
+    uint8_t loNyb;
+    if ( cnv ) {
+        loNyb = NL_F32;
+    } else {
+        loNyb = NL_F64;
+    }
+    uint8_t hiNyb;
+    if ( numBase == 10 ) {
+        hiNyb = NH_DEC;
+    } else if ( numBase == 16 ) {
+        hiNyb = NH_HEX;
+    } else if ( numBase == 8 ) {
+        hiNyb = NH_OCT;
+    } else if ( numBase == 2 ) {
+        hiNyb = NH_BIN;
+    } else {
+        return false;
+    }
+    if ( !outBuf.writeByte( T_NUMLIT ) ) return false;
+    if ( !outBuf.writeByte( hiNyb | loNyb ) ) return false;
+    if ( cnv ) {
+        return outBuf.writeReal32( (float) realVal );
+    }
+    return outBuf.writeReal64( realVal );
+}
+
+uint16_t Tokenizer::tokenize() {
+
+    bool first = true;
+
+    for (;;) {
+        uint16_t tok = nextTok();
+        if ( tok == T_EOL || tok >= UINT16_C(0XFF00) ) {
+            if ( tok == T_EOL ) {
+                if ( !outBuf.writeByte( T_EOL ) ) return T_MEMERR;
+            }
+            return tok;
+        }
+
+        if ( first && tok == T_NUMLIT && isInt && intVal >= 0 &&
+            intVal <= (int64_t) UINT24_MAX && numBase == 10 ) {
+            // line number
+            if ( !storeLineNo() ) return T_MEMERR;
+        } else if ( first && tok == T_NUMLIT ) {
+            return T_SYNERR;
+        } else if ( tok == T_NUMLIT && isInt ) {
+            if ( !storeInt() ) return T_MEMERR;
+        } else if ( tok == T_NUMLIT ) {
+            if ( !storeReal() ) return T_MEMERR;
+        }
+
+        // ... TBD ...
+
+        first = false;
+    }
+
+}
 

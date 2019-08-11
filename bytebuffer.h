@@ -27,12 +27,7 @@
 #include "types.h"
 #endif
 
-class ByteBuffer {
-
-    // forbid copying
-    ByteBuffer( const ByteBuffer& );
-    ByteBuffer& operator=( const ByteBuffer& );
-    //
+class ByteBuffer : public NonCopyable {
 
     uint8_t*    baseAddr;
     size_t      bufSize;
@@ -45,10 +40,13 @@ class ByteBuffer {
 public:
     ByteBuffer( size_t bufSize_ );
     ByteBuffer( uint8_t* baseAddr_, size_t bufSize_, size_t bufFill_ );
-    ~ByteBuffer();
+    virtual ~ByteBuffer();
 
     inline size_t getReadPos() const { return readPos; }
-    inline void* getAddr( size_t pos ) const { 
+    inline size_t getWritePos() const { return bufFill; }
+    inline uint8_t* getBaseAddr() const { return baseAddr; }
+
+    inline uint8_t* getAddr( size_t pos ) const { 
         if ( pos >= bufFill ) return 0;
         return &baseAddr[pos];
     }
@@ -74,8 +72,23 @@ public:
     bool readToken( uint16_t& rOut );
     bool writeToken( uint16_t inp );
 
+    inline bool readWord( uint16_t& rOut ) { return readToken( rOut ); }
+    inline bool writeWord( uint16_t inp ) { return writeToken( inp ); }
+
     bool readLineNo( uint32_t& rOut ); // 24 bit
     bool writeLineNo( uint32_t inp );  // 24 bit
+
+    bool readDWord( uint32_t& rOut );
+    bool writeDWord( uint32_t inp );
+
+    bool readReal32( float& rOut );
+    bool writeReal32( float inp );
+
+    bool readQWord( uint64_t& rOut );
+    bool writeQWord( uint64_t inp );
+
+    bool readReal64( double& rOut );
+    bool writeReal64( double inp );
     
 };
 

@@ -215,6 +215,7 @@
 #define T_STRLNG        0XFFFB  // string too long
 #define T_NUMLNG        0XFFFA  // numeric literal too long
 #define T_NUMBAD        0XFFF9  // bad number
+#define T_MEMERR        0XFFF8  // memory error
 
 
 #endif

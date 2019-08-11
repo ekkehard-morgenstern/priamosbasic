@@ -31,9 +31,15 @@
 #include "tokens.h"
 #endif
 
+#ifndef BYTEBUFFER_H
+#include "bytebuffer.h"
+#endif
+
 #define MAXIDENT         32
 #define MAXSTRLIT        255
 #define NUMBUFSZ         256
+#define TOKBUFSZ         1024   // autoscales
+#define UINT24_MAX       UINT32_C(0X00FFFFFF)
 
 class Tokenizer : public NonCopyable {
 
@@ -52,6 +58,8 @@ class Tokenizer : public NonCopyable {
     double         realVal;
     bool           isInt;
     int            numBase;
+    // buffered output
+    ByteBuffer     outBuf;
 
     void readIdent( uint8_t b );
     
@@ -69,9 +77,19 @@ class Tokenizer : public NonCopyable {
     uint16_t readNum( uint8_t b, int base );
     uint16_t readNum( int base );
 
+    bool storeLineNo();
+    bool storeInt();
+    bool storeReal();
+
 public:
     Tokenizer( const uint8_t* source_, size_t sourceLen_ );
     virtual ~Tokenizer();
+
+    // low-level interface ----------------------------------------
+
+    inline const uint8_t* getPos() const { return pos; }
+    inline const uint8_t* getSourceStart() const { return source; }
+    inline const uint8_t* getSourceEnd() const { return sourceEnd; }
 
     uint16_t nextTok();
 
@@ -89,6 +107,15 @@ public:
     inline double numRVal() const { return realVal; }
     inline int numBase_() const { return numBase; }
 
+    // high-level interface --------------------------------------
+
+    uint16_t tokenize();    // stops and returns on error
+
+    inline size_t getTokBufSz() const { return outBuf.getWritePos(); }
+
+    inline uint8_t* getTokBufAddr() const { 
+        return outBuf.getBaseAddr(); 
+    }
 
 };
 

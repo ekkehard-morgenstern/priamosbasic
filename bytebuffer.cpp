@@ -68,6 +68,66 @@ bool ByteBuffer::writeLineNo( uint32_t inp ) {
     return true;
 }
 
+bool ByteBuffer::readDWord( uint32_t& rOut ) {
+    uint16_t hi, lo;
+    if ( !readWord( hi ) ) return false;
+    if ( !readWord( lo ) ) return false;
+    rOut = ( ((uint32_t)hi) << UINT8_C(16) ) | lo;
+    return true;
+}
+
+bool ByteBuffer::writeDWord( uint32_t inp ) {
+    uint16_t hi = (uint16_t)( inp >> UINT8_C(16) );
+    uint16_t lo = (uint16_t)  inp;
+    if ( !writeWord( hi ) ) return false;
+    if ( !writeWord( lo ) ) return false;
+    return true;
+}
+
+bool ByteBuffer::readReal32( float& rOut ) {
+    U_IntReal32 ir;
+    if ( !readDWord( ir.ival ) ) return false;
+    rOut = ir.rval;
+    return true;
+}
+
+bool ByteBuffer::writeReal32( float inp ) {
+    U_IntReal32 ir;
+    ir.rval = inp;
+    if ( !writeDWord( ir.ival ) ) return false;
+    return true;
+}
+
+bool ByteBuffer::readQWord( uint64_t& rOut ) {
+    uint32_t hi, lo;
+    if ( !readDWord( hi ) ) return false;
+    if ( !readDWord( lo ) ) return false;
+    rOut = ( ((uint64_t)hi) << UINT8_C(32) ) | lo;
+    return true;
+}
+
+bool ByteBuffer::writeQWord( uint64_t inp ) {
+    uint32_t hi = (uint32_t)( inp >> UINT8_C(32) );
+    uint32_t lo = (uint32_t)  inp;
+    if ( !writeDWord( hi ) ) return false;
+    if ( !writeDWord( lo ) ) return false;
+    return true;
+}
+
+bool ByteBuffer::readReal64( double& rOut ) {
+    U_IntReal64 ir;
+    if ( !readQWord( ir.ival ) ) return false;
+    rOut = ir.rval;
+    return true;
+}
+
+bool ByteBuffer::writeReal64( double inp ) {
+    U_IntReal64 ir;
+    ir.rval = inp;
+    if ( !writeQWord( ir.ival ) ) return false;
+    return true;
+}
+
 bool ByteBuffer::autoScale( size_t size ) {
     if ( !freeMem ) return false;
     size_t newSize = bufSize * 2U;
