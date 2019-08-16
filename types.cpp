@@ -32,3 +32,40 @@ double getTime() {
     return ( (double) ts.tv_sec ) + ( (double) ts.tv_nsec /
         1.0e9 );
 }
+
+void hexDump( const void* addr, size_t size ) {
+    static const char hex[] = "0123456789ABCDEF";
+    const uint8_t* ptr = (const uint8_t*) addr;
+    // 0000: 00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00
+    // 00000000001111111111222222222233333333334444444444555555 
+    // 01234567890123456789012345678901234567890123456789012345
+    //     .... .... .... ....
+    // 555566666666667777777777
+    // 678901234567890123456789
+    char lineBuf[78];
+    for ( size_t i=0; i < size; ++i ) {
+        size_t cell = i % 16U;
+        if ( cell == 0 ) {
+            size_t offs = i;
+            uint8_t b1  = (uint8_t)( ( offs >> 8U ) & 255U );
+            uint8_t b2  = (uint8_t)(   offs         & 255U );
+            memset( lineBuf, ' ', 77 ); lineBuf[77] = '\0';
+            lineBuf[0] = hex[ ( b1 >> 4U ) & 15U ];
+            lineBuf[1] = hex[   b1         & 15U ];
+            lineBuf[2] = hex[ ( b2 >> 4U ) & 15U ];
+            lineBuf[3] = hex[   b2         & 15U ];
+            lineBuf[4] = ':';
+        }
+        size_t  grp = cell / 4U;
+        size_t  inx = cell % 4U;
+        size_t  off = 6U + grp * 13U + inx * 3U;
+        uint8_t b   = ptr[i];
+        lineBuf[off+0U] = hex[ ( b >> 4U ) & 15U ];
+        lineBuf[off+1U] = hex[   b         & 15U ];
+        off = 58U + grp * 5U + inx;
+        lineBuf[off] = (char)( b >= 32U && b < 127U ? b : 46U );
+        if ( cell == 15U || i == size-1U ) {
+            printf( "%s\n", lineBuf );
+        }
+    }
+}

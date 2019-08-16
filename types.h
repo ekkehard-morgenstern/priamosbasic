@@ -60,4 +60,6 @@ union U_IntReal32 {
     float       rval;
 };
 
+void hexDump( const void* addr, size_t size );
+
 #endif

@@ -609,6 +609,9 @@ uint16_t Tokenizer::tokenize() {
             if ( !storeLabel() ) return T_MEMERR;
             tok = T_LABEL;
             if ( locationExprToken( prevTok ) ) stickyTok = tok;
+            
+        } else if ( tok == T_IDENT ) {
+            if ( !storeIdent() ) return T_MEMERR;
 
         } else if ( tok == T_STRLIT ) {
             if ( first ) return T_SYNERR;
