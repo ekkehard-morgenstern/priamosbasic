@@ -590,7 +590,7 @@ uint16_t Tokenizer::tokenize() {
         } else if ( tok == T_NUMLIT ) {
             if ( !storeReal() ) return T_MEMERR;
 
-        } else if ( first && tok == T_IDENT ) {
+        } else if ( tok == T_IDENT ) {
             // if followed by colon, might be label
             if ( pos >= sourceEnd ) return T_SYNERR;
             uint8_t b = *pos;
@@ -609,9 +609,6 @@ uint16_t Tokenizer::tokenize() {
             if ( !storeLabel() ) return T_MEMERR;
             tok = T_LABEL;
             if ( locationExprToken( prevTok ) ) stickyTok = tok;
-            
-        } else if ( tok == T_IDENT ) {
-            if ( !storeIdent() ) return T_MEMERR;
 
         } else if ( tok == T_STRLIT ) {
             if ( first ) return T_SYNERR;
