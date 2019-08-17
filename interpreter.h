@@ -27,10 +27,23 @@
 #include "types.h"
 #endif
 
-class Interpreter {
+#ifndef TOKENIZER_H
+#include "tokenizer.h"
+#endif
 
+// initial program buffer size
+#define INTP_PRGSIZE    16384U
 
+class Interpreter : public NonCopyable {
 
+    ByteBuffer  prg;
+
+public:
+    Interpreter();
+    virtual ~Interpreter();
+
+    void interpretLine( const char* line );
+    
 };
 
 

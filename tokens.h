@@ -164,10 +164,14 @@
 #define KW_SHR 0X0F0D
 
 #define T_EOL           0X00
+#define T_KWBNKC        0X03
 #define T_IDENT         0X05
+#define T_KWBNKF        0X06
 #define T_STRLIT        0X07
 #define T_LINENO        0X08
 #define T_NUMLIT        0X09
+#define T_KWBNKK        0X0B
+#define T_OPBNKO        0X0F
 #define N_MSKHI         0XF0
 #define N_MSKLO         0X0F
 #define NH_BIN          0X20

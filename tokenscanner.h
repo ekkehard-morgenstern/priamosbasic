@@ -20,18 +20,41 @@
         E-Mail: ekkehard@ekkehardmorgenstern.de
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
-#include "interpreter.h"
+#ifndef TOKENSCANNER_H
+#define TOKENSCANNER_H  1
 
-Interpreter::Interpreter() : prg( INTP_PRGSIZE ) {}
-Interpreter::~Interpreter() {}
+#ifndef TYPES_H
+#include "types.h"
+#endif
 
-void Interpreter::interpretLine( const char* line ) {
-    Tokenizer t( (const uint8_t*) line, strlen(line) );
-    uint16_t tok = t.tokenize();
-    if ( tok != T_EOL ) {
-        // TODO: error handling
+#ifndef TOKENS_H
+#include "tokens.h"
+#endif
 
-        return;
-    }
+class TokenScanner : public NonCopyable {
+
+    const uint8_t* pos;
+
+public:
+    TokenScanner( const uint8_t* pos_ );
+    virtual ~TokenScanner();
+
+    uint16_t tokType() const;
+    bool skipTok();
+
+    // T_IDENT, T_STRLIT, T_LABEL
+    bool getText( const uint8_t*& rText, uint8_t& rLen ) const;
+
+    // T_LINENO
+    bool getLineNo( uint32_t& rLineNo ) const;
+
+    // T_NUMLIT, T_SBI
+    bool getNumber( double& rVal ) const;
     
-}
+
+
+};
+
+
+
+#endif
