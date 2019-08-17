@@ -309,7 +309,7 @@ uint16_t Tokenizer::readNum( int base ) {
 
 uint16_t Tokenizer::nextTok() {
 
-    uint8_t b; uint16_t t;
+    uint8_t b; uint16_t t; bool isRem;
 
 REDO:
 
@@ -321,7 +321,6 @@ REDO:
         case UINT8_C(0X21): ++pos; return T_PLING;      // !
         case UINT8_C(0X24): ++pos; return readNum( 16 );    // $
         case UINT8_C(0X25): ++pos; return readNum( 2 ); // %
-        case UINT8_C(0X27): ++pos; return T_REM;        // ', REM
         case UINT8_C(0X28): ++pos; return T_LPAREN;     // (
         case UINT8_C(0X29): ++pos; return T_RPAREN;     // )
         case UINT8_C(0X2A): ++pos; 
@@ -371,8 +370,15 @@ REDO:
         ( b >= UINT8_C(0X61) && b <= UINT8_C(0X7A) ) ) {    // a..z
         readIdent( b );
         t = Keywords::getInstance().lookup( ident, idLen );
-        if ( t != KW_NOTFOUND ) return t;
-        return T_IDENT;
+        if ( t != KW_NOTFOUND ) {
+            if ( t != T_REM ) return t;
+            b = UINT8_C(0X27); // '
+            isRem = true;
+        } else {
+            return T_IDENT;
+        }
+    } else {
+        isRem = false;
     }
 
     if ( b == UINT8_C(0X20) || b == UINT8_C(0X08) || 
@@ -396,6 +402,18 @@ REDO:
             strlit[slLen++] = b;
         } while (1);
         return T_STRLIT;
+    }
+
+    if ( b == UINT8_C(0X27) ) { // ', REM
+        if ( !isRem ) ++pos;
+        if ( pos < sourceEnd && *pos == UINT8_C(0X20) ) ++pos;
+        slLen = 0;
+        do {
+            if ( pos >= sourceEnd ) break;
+            b = *pos++;
+            if ( slLen < MAXSTRLIT ) strlit[slLen++] = b;
+        } while (1);
+        return T_REM;
     }
 
     if ( ( b >= UINT8_C(0X30) && b <= UINT8_C(0X39) ) || // 0..9
@@ -526,6 +544,12 @@ bool Tokenizer::storeStrLit() {
     return outBuf.writeBlock( strlit, slLen );
 }
 
+bool Tokenizer::storeRem() {
+    if ( !outBuf.writeByte( T_REM ) ) return false;
+    if ( !outBuf.writeByte( (uint8_t) slLen ) ) return false;
+    return outBuf.writeBlock( strlit, slLen );
+}
+
 bool Tokenizer::identDecorated() const {
     if ( idLen > 0 ) {
         uint8_t b = ident[idLen-1];
@@ -613,6 +637,9 @@ uint16_t Tokenizer::tokenize() {
         } else if ( tok == T_STRLIT ) {
             if ( first ) return T_SYNERR;
             if ( !storeStrLit() ) return T_MEMERR;
+            
+        } else if ( tok == T_REM ) {
+            if ( !storeRem() ) return T_MEMERR;
 
         } else {
             if ( tok < UINT16_C(0X0100) ) {

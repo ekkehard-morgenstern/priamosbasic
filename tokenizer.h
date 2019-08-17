@@ -50,7 +50,7 @@ class Tokenizer : public NonCopyable {
     // T_IDENT
     uint8_t        ident[MAXIDENT];
     int            idLen;
-    // T_STRLIT
+    // T_STRLIT, T_REM
     uint8_t        strlit[MAXSTRLIT];
     int            slLen;
     // T_NUMLIT
@@ -83,6 +83,7 @@ class Tokenizer : public NonCopyable {
     bool storeLabel();
     bool storeIdent();
     bool storeStrLit();
+    bool storeRem();
     bool identDecorated() const;
 
     static bool locationToken( uint16_t tok );

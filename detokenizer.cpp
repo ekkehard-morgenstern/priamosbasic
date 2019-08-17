@@ -38,6 +38,7 @@ const char* Detokenizer::detokenize() {
         switch ( tok ) {
             uint32_t lineNo; char tmp[100]; int n;
             const uint8_t* text; uint8_t len; double val;
+            const char* text2;
             case T_LINENO:
                 if ( !scan.getLineNo( lineNo ) ) return 0;
                 n = snprintf( tmp, sizeof(tmp), "%" PRIu32, lineNo );
@@ -63,12 +64,19 @@ const char* Detokenizer::detokenize() {
                 n = snprintf( tmp, sizeof(tmp), "%g", val );
                 if ( !buf.writeBlock( tmp, n ) ) return 0;
                 break;
+            case T_REM:
+                text2 = Keywords::getInstance().lookup( tok );
+                if ( text2 == 0 ) return 0;
+                if ( !buf.writeBlock( text2, strlen(text2) ) ) return 0;
+                if ( !buf.writeByte(UINT8_C(32)) ) return 0;
+                if ( !scan.getText( text, len ) ) return 0;
+                if ( !buf.writeBlock( text, len ) ) return 0;
+                break;
             default:
-                if ( tok >= UINT16_C(0X0100) ) {
-                    const char* text = Keywords::getInstance().lookup( tok );
-                    printf( "text=%s, tok=%x\n", text, (int) tok );
-                    if ( text == 0 ) return 0;
-                    if ( !buf.writeBlock( text, strlen(text) ) ) return 0;
+                if ( tok >= UINT16_C(0X0100) || tok == T_PRINT ) {
+                    text2 = Keywords::getInstance().lookup( tok );
+                    if ( text2 == 0 ) return 0;
+                    if ( !buf.writeBlock( text2, strlen(text2) ) ) return 0;
                 } else {
                     if ( !buf.writeByte( (uint8_t) tok ) ) return 0;
                 }

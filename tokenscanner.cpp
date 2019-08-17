@@ -41,7 +41,7 @@ bool TokenScanner::skipTok() {
         case T_EOL: return false;
         case T_SBI: pos += 2; break;
         case T_LINENO: pos += 4; break;
-        case T_IDENT: case T_STRLIT: case T_LABEL:
+        case T_IDENT: case T_STRLIT: case T_LABEL: case T_REM:
             n = pos[1];
             pos += 2 + n;
             break;
@@ -66,7 +66,7 @@ bool TokenScanner::skipTok() {
 bool TokenScanner::getText( const uint8_t*& rText, uint8_t& rLen ) const {
     uint8_t b = *pos;
     switch ( b ) {
-        case T_IDENT: case T_STRLIT: case T_LABEL:
+        case T_IDENT: case T_STRLIT: case T_LABEL: case T_REM:
             break;
         default:
             return false;
