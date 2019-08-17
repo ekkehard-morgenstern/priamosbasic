@@ -38,7 +38,7 @@ bool TokenScanner::skipTok() {
     uint16_t tok = tokType();
     switch ( tok ) {
         uint8_t n, b;
-        case T_EOL: break;
+        case T_EOL: return false;
         case T_SBI: pos += 2; break;
         case T_LINENO: pos += 4; break;
         case T_IDENT: case T_STRLIT: case T_LABEL:

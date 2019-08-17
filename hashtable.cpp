@@ -89,7 +89,7 @@ void HashTable::remove( HashEntry* hashEntry ) {
     }
 }
 
-HashEntry* HashTable::find( const uint8_t* name, size_t nameLen ) {
+HashEntry* HashTable::find( const uint8_t* name, size_t nameLen ) const {
     size_t hv = computeHashVal( name, nameLen );
     HashEntry* hashEntry = table[hv];
     while ( hashEntry ) {

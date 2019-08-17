@@ -20,53 +20,36 @@
         E-Mail: ekkehard@ekkehardmorgenstern.de
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
-#ifndef HASHTABLE_H
-#define HASHTABLE_H 1
+#ifndef DETOKENIZER_H
+#define DETOKENIZER_H   1
 
 #ifndef TYPES_H
 #include "types.h"
 #endif
 
-struct HashEntry : public NonCopyable {
+#ifndef BYTEBUFFER_H
+#include "bytebuffer.h"
+#endif 
 
-    HashEntry*  nextHash;    // next entry with same hash value
-    uint8_t*    name;
-    size_t      nameLen;
+#ifndef TOKENSCANNER_H
+#include "tokenscanner.h"
+#endif
 
-    HashEntry( const uint8_t* name_, size_t nameLen_ );
-    virtual ~HashEntry();
+// initial detokenize buffer size
+#define DETOK_BUFSZ     1024U
 
-};
+class Detokenizer : public NonCopyable {
 
-
-#define HT_SIZE     1024
-
-class HashTable : public NonCopyable {
-
-    HashEntry* table[HT_SIZE];
-    size_t     count[HT_SIZE];
-    size_t     total;
-
-    static size_t computeHashVal( const uint8_t* name, 
-        size_t nameLen );
+    TokenScanner    scan;
+    ByteBuffer      buf;
 
 public:
-    HashTable();
-    virtual ~HashTable();
+    Detokenizer( const uint8_t* pos );
+    virtual ~Detokenizer();
 
-    void enter( HashEntry* hashEntry );
-
-    void remove( HashEntry* hashEntry );
-    
-    HashEntry* find( const uint8_t* name, size_t nameLen ) const;
-
-    void clear();
-
-    void dumpCounts() const;
-    double coverage() const;
+    const char* detokenize();
 
 };
 
 
 #endif
-

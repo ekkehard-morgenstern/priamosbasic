@@ -21,6 +21,7 @@
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
 #include "tokenizer.h"
+#include "detokenizer.h"
 
 int main( int argc, char** argv ) {
 
@@ -31,6 +32,9 @@ int main( int argc, char** argv ) {
         uint16_t res = t.tokenize();
         printf( "%d\n", res );
         hexDump( t.getTokBufAddr(), t.getTokBufSz() );
+        Detokenizer d( t.getTokBufAddr() );
+        const char* text = d.detokenize();
+        if ( text ) printf( "%s\n", text );
 
     }
 

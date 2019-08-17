@@ -34,7 +34,7 @@ struct PredefKW {
     short       tok;
 };
 
-struct KW_Hashent : public HashEntry {
+struct KW_Hashent : public HashEntry {  // lookup by name
 
     uint16_t tok;
 
@@ -42,9 +42,18 @@ struct KW_Hashent : public HashEntry {
 
 };
 
+struct KW_Hashent2 : public HashEntry { // lookup by token
+
+    const char* text;
+
+    KW_Hashent2( const uint16_t& tok, const char* text_ );
+
+};
+
 class Keywords : private NonCopyable {
 
-    HashTable ht;
+    HashTable ht,   // lookup by name
+              ht2;  // lookup by token
 
     static const PredefKW predef[];
 
@@ -62,7 +71,9 @@ public:
 
     void add( const uint8_t* name, size_t nameLen, uint16_t tok );
 
-    uint16_t lookup( const uint8_t* name, size_t nameLen );
+    uint16_t lookup( const uint8_t* name, size_t nameLen ) const;
+
+    const char* lookup( uint16_t tok ) const;
 
 };
 

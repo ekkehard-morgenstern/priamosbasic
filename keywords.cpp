@@ -27,6 +27,9 @@ KW_Hashent::KW_Hashent( const char* p, unsigned char len,
     uint16_t tok_ ) : HashEntry( (const uint8_t*) p, len ),
     tok(tok_) {}
 
+KW_Hashent2::KW_Hashent2( const uint16_t& tok, const char* text_ )
+    : HashEntry( (const uint8_t*)(&tok), 2U ), text(text_) {}
+
 const PredefKW Keywords::predef[] = {
     { "\3NOP", KW_NOP },
     { "\3END", KW_END },
@@ -182,6 +185,7 @@ void Keywords::init() {
         unsigned char   len = *p++;
         uint16_t        tok = (uint16_t) predef[i].tok;
         ht.enter( new KW_Hashent( p, len, tok ) );
+        ht2.enter( new KW_Hashent2( tok, p ) );
     }
 }
 
@@ -193,7 +197,7 @@ void Keywords::add( const uint8_t* name, size_t nameLen,
         (unsigned char) nameLen, tok ) );
 }
 
-uint16_t Keywords::lookup( const uint8_t* name, size_t nameLen ) {
+uint16_t Keywords::lookup( const uint8_t* name, size_t nameLen ) const {
 
     HashEntry* ent = ht.find( name, nameLen );
     if ( ent == 0 ) return KW_NOTFOUND;
@@ -202,4 +206,16 @@ uint16_t Keywords::lookup( const uint8_t* name, size_t nameLen ) {
     if ( kw == 0 ) return KW_NOTFOUND;
 
     return kw->tok;
+}
+
+const char* Keywords::lookup( uint16_t tok ) const {
+
+    uint16_t tmp( tok );
+    HashEntry* ent = ht2.find( (const uint8_t*)(&tmp), 2U );
+    if ( ent == 0 ) return 0;
+
+    KW_Hashent2* kw = dynamic_cast<KW_Hashent2*>( ent );
+    if ( kw == 0 ) return 0;
+
+    return kw->text;
 }
