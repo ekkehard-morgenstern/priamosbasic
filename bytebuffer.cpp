@@ -23,10 +23,10 @@
 #include "bytebuffer.h"
 
 ByteBuffer::ByteBuffer( size_t bufSize_ ) : baseAddr( new uint8_t [ bufSize_ ] ), bufSize(bufSize_), bufFill(0), readPos(0),
-    freeMem(true) {}
+    freeMem(true), memMgr(0) {}
 
 ByteBuffer::ByteBuffer( uint8_t* baseAddr_, size_t bufSize_, size_t bufFill_ ) : baseAddr(baseAddr_), bufSize(bufSize_), 
-    bufFill(bufFill_), readPos(0), freeMem(false) {}
+    bufFill(bufFill_), readPos(0), freeMem(false), memMgr(0) {}
 
 ByteBuffer::~ByteBuffer() {
     if ( freeMem ) delete [] baseAddr;
@@ -130,6 +130,10 @@ bool ByteBuffer::writeReal64( double inp ) {
 
 bool ByteBuffer::autoScale( size_t size ) {
     if ( !freeMem ) return false;
+    if ( memMgr ) {
+        memMgr->compact( *this );
+        if ( bufFill + size <= bufSize ) return true;
+    }
     size_t newSize = bufSize * 2U;
     if ( bufFill + size > newSize ) { newSize = bufFill + size; }
     uint8_t* newBuf = new uint8_t [ newSize ];
@@ -139,10 +143,19 @@ bool ByteBuffer::autoScale( size_t size ) {
     return true;
 }
 
-uint8_t* ByteBuffer::readBlock( size_t size ) {
+void ByteBuffer::setReadPos( size_t pos ) {
+    if ( pos > bufFill ) { readPos = bufFill; return; }
+    readPos = pos;
+}
+
+void ByteBuffer::setWritePos( size_t pos ) {
+    if ( !freeMem || pos > bufFill ) return;
+    bufFill = pos;
+}
+
+const uint8_t* ByteBuffer::readBlock( size_t size ) {
     if ( readPos + size > bufFill ) return 0;
-    uint8_t* pOut = new uint8_t [ size ];
-    if ( size ) memcpy( pOut, &baseAddr[readPos], size );
+    const uint8_t* pOut = &baseAddr[readPos];
     readPos += size;
     return pOut;
 }

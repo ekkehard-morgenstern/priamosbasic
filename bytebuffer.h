@@ -27,6 +27,13 @@
 #include "types.h"
 #endif
 
+class ByteBuffer;
+
+class BBMemMan {
+public:
+    virtual void compact( ByteBuffer& buf ) = 0;
+};
+
 class ByteBuffer : public NonCopyable {
 
     uint8_t*    baseAddr;
@@ -34,6 +41,7 @@ class ByteBuffer : public NonCopyable {
     size_t      bufFill;
     size_t      readPos;
     bool        freeMem;
+    BBMemMan*   memMgr;
 
     bool autoScale( size_t size = 1U );
 
@@ -42,9 +50,15 @@ public:
     ByteBuffer( uint8_t* baseAddr_, size_t bufSize_, size_t bufFill_ );
     virtual ~ByteBuffer();
 
+    inline void setMemMgr( BBMemMan& mgr ) { memMgr = &mgr; }
+    inline void clrMemMgr() { memMgr = 0; }
+
     inline size_t getReadPos() const { return readPos; }
     inline size_t getWritePos() const { return bufFill; }
     inline uint8_t* getBaseAddr() const { return baseAddr; }
+
+    void setReadPos( size_t pos );
+    void setWritePos( size_t pos );
 
     inline uint8_t* getAddr( size_t pos ) const { 
         if ( pos >= bufFill ) return 0;
@@ -65,7 +79,7 @@ public:
         return true;
     }
 
-    uint8_t* readBlock( size_t size );
+    const uint8_t* readBlock( size_t size );
     bool readBlock( void* target, size_t size );
     bool writeBlock( const void* source, size_t size );
 

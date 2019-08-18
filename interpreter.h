@@ -31,17 +31,51 @@
 #include "tokenizer.h"
 #endif
 
-// initial program buffer size
-#define INTP_PRGSIZE    16384U
+#ifndef TOKENSCANNER_H
+#include "tokenscanner.h"
+#endif
 
-class Interpreter : public NonCopyable {
+#ifndef EXCEPTION_H
+#include "exception.h"
+#endif
+
+// initial program buffer size
+#define INTP_PRGSIZE        16384U
+#define INTP_MINLINEINFO    1024U
+
+struct LineInfo {
+    uint32_t lineNo;    // line number
+    uint32_t offset;    // offset in program buffer
+    uint32_t length;    // length of line in bytes (incl. T_EOL)
+    uint32_t pad_;      // (padding)
+};
+
+class Interpreter : public NonCopyable, protected BBMemMan {
 
     ByteBuffer  prg;
+    LineInfo*   lineInfo;
+    size_t      lineInfoCount;
+    size_t      lineInfoAlloc;
+    uint32_t    lastLineNumber;
+    bool        haveLastLineNumber;
+
+    void expandLineInfo();
+    void appendLineInfo( const LineInfo& src );
+    void insertLineInfo( const LineInfo& src, size_t pos );
+    void insertLineInfo( const LineInfo& src );
+    void deleteLineInfoAt( size_t pos );
+    void deleteLineInfo( uint32_t lineNo );
+    void enterLine( const Tokenizer& t );
+    virtual void compact( ByteBuffer& buf );
 
 public:
     Interpreter();
     virtual ~Interpreter();
 
+    // interpret a line of tokens (direct mode)
+    void interpret( Tokenizer& t );
+
+    // interpret a line in direct mode
     void interpretLine( const char* line );
     
 };
