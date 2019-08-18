@@ -39,6 +39,14 @@
 #include "exception.h"
 #endif
 
+#ifndef HASHTABLE_H
+#include "hashtable.h"
+#endif
+
+#ifndef DETOKENIZER_H
+#include "detokenizer.h"
+#endif
+
 // initial program buffer size
 #define INTP_PRGSIZE        16384U
 #define INTP_MINLINEINFO    1024U
@@ -50,6 +58,17 @@ struct LineInfo {
     uint32_t pad_;      // (padding)
 };
 
+class Interpreter;
+typedef void (Interpreter::*CmdMethodPtr)( TokenScanner& scan );
+
+struct CmdHashEnt : public HashEntry {
+
+    CmdMethodPtr mth;   // method in Interpreter class
+
+    CmdHashEnt( uint16_t& tok_, CmdMethodPtr mth_ );
+    virtual ~CmdHashEnt();
+};
+
 class Interpreter : public NonCopyable, protected BBMemMan {
 
     ByteBuffer  prg;
@@ -58,6 +77,7 @@ class Interpreter : public NonCopyable, protected BBMemMan {
     size_t      lineInfoAlloc;
     uint32_t    lastLineNumber;
     bool        haveLastLineNumber;
+    HashTable   commandHt;
 
     void expandLineInfo();
     void appendLineInfo( const LineInfo& src );
@@ -68,12 +88,17 @@ class Interpreter : public NonCopyable, protected BBMemMan {
     void enterLine( const Tokenizer& t );
     virtual void compact( ByteBuffer& buf );
 
+    void list( TokenScanner& scan );
+
+    void declare( uint16_t tok_, CmdMethodPtr mth_ );
+    void declare(); // declare all of the built-in commands
+
 public:
     Interpreter();
     virtual ~Interpreter();
 
     // interpret a line of tokens (direct mode)
-    void interpret( Tokenizer& t );
+    void interpret( TokenScanner& scan );
 
     // interpret a line in direct mode
     void interpretLine( const char* line );

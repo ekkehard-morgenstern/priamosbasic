@@ -22,6 +22,9 @@
 
 #include "interpreter.h"
 
+CmdHashEnt::CmdHashEnt( uint16_t& tok_, CmdMethodPtr mth_ )
+    :   HashEntry( (const uint8_t*)(&tok_), 2U ), mth(mth_) {}
+CmdHashEnt::~CmdHashEnt() {}
 
 void Interpreter::expandLineInfo() {
     size_t    newAlloc    = lineInfoAlloc * 2U;
@@ -161,6 +164,28 @@ void Interpreter::compact( ByteBuffer& buf ) {
     }
 }
 
+void Interpreter::list( TokenScanner& scan ) {
+    for ( size_t pos=0; pos < lineInfoCount; ++pos ) {
+        const LineInfo& li = lineInfo[pos];
+        prg.setReadPos( li.offset );
+        const uint8_t* ptr = prg.readBlock( li.length );
+        if ( ptr == 0 ) throw Exception( "list error (type A)" );
+        Detokenizer d( ptr );
+        const char* text = d.detokenize();
+        if ( text == 0 ) throw Exception( "list error (type B)" );
+        printf( "%s\n", text );
+    }
+}
+
+void Interpreter::declare( uint16_t tok_, CmdMethodPtr mth_ ) {
+    uint16_t tok = tok_;
+    commandHt.enter( new CmdHashEnt( tok, mth_ ) );
+}
+
+void Interpreter::declare() {
+    declare( KW_LIST, &Interpreter::list );
+}
+
 Interpreter::Interpreter() : prg( INTP_PRGSIZE ) {
     lineInfo      = new LineInfo [ INTP_MINLINEINFO ];
     lineInfoCount = 0;
@@ -168,14 +193,33 @@ Interpreter::Interpreter() : prg( INTP_PRGSIZE ) {
     lastLineNumber = 0;
     haveLastLineNumber = false;
     prg.setMemMgr( *this );
+    declare();
 }
 
 Interpreter::~Interpreter() {
     delete [] lineInfo;
 }
 
-void Interpreter::interpret( Tokenizer& t ) {
-
+void Interpreter::interpret( TokenScanner& scan ) {
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok == T_EOL ) break;
+        if ( !scan.skipTok() ) {
+            throw Exception( "interpret error (type A)" );
+        }
+        if ( tok == T_LINENO || tok == T_LABEL ) continue;
+        HashEntry* he = commandHt.find( (const uint8_t*)(&tok), 2U );
+        if ( he ) {
+            CmdHashEnt* cmd = dynamic_cast<CmdHashEnt*>( he );
+            if ( cmd == 0 ) {
+                throw Exception( "interpret error (type B)" );
+            }
+            CmdMethodPtr mth = cmd->mth;
+            (this->*mth)( scan );
+            continue;
+        }
+        throw Exception( "not implemented" );
+    }
 }
 
 void Interpreter::interpretLine( const char* line ) {
@@ -194,5 +238,5 @@ void Interpreter::interpretLine( const char* line ) {
         enterLine( t );
         return;
     }
-    interpret( t );
+    interpret( scan );
 }
