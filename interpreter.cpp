@@ -164,9 +164,33 @@ void Interpreter::compact( ByteBuffer& buf ) {
     }
 }
 
+bool Interpreter::getLineNo( TokenScanner& scan, uint32_t& rLineNo ) {
+   uint16_t tok = scan.tokType();
+    if ( tok != T_LINENO ) return false;
+    if ( !scan.getLineNo( rLineNo ) ) return false;
+    if ( !scan.skipTok() ) return false;
+    return true;
+ }
+
+bool Interpreter::getLineNoExpr( TokenScanner& scan, uint32_t& lineNo1, uint32_t& lineNo2 ) {
+    bool hadFirst = getLineNo( scan, lineNo1 );
+    uint16_t tok = scan.tokType();
+    if ( tok == T_MINUS ) {
+        if ( !scan.skipTok() ) return false;
+        getLineNo( scan, lineNo2 );
+    } else if ( hadFirst ) {
+        lineNo2 = lineNo1;
+    }
+    return true;
+}
+
 void Interpreter::list( TokenScanner& scan ) {
+    uint32_t lineNo1 = 0;
+    uint32_t lineNo2 = UINT32_MAX;
+    getLineNoExpr( scan, lineNo1, lineNo2 );
     for ( size_t pos=0; pos < lineInfoCount; ++pos ) {
         const LineInfo& li = lineInfo[pos];
+        if ( li.lineNo < lineNo1 || li.lineNo > lineNo2 ) continue;
         prg.setReadPos( li.offset );
         const uint8_t* ptr = prg.readBlock( li.length );
         if ( ptr == 0 ) throw Exception( "list error (type A)" );
@@ -207,7 +231,7 @@ void Interpreter::interpret( TokenScanner& scan ) {
         if ( !scan.skipTok() ) {
             throw Exception( "interpret error (type A)" );
         }
-        if ( tok == T_LINENO || tok == T_LABEL ) continue;
+        if ( tok == T_LINENO || tok == T_LABEL || tok == T_COLON ) continue;
         HashEntry* he = commandHt.find( (const uint8_t*)(&tok), 2U );
         if ( he ) {
             CmdHashEnt* cmd = dynamic_cast<CmdHashEnt*>( he );
@@ -227,6 +251,7 @@ void Interpreter::interpretLine( const char* line ) {
     uint16_t tok = t.tokenize();
     if ( tok != T_EOL ) {
         // TODO: error handling
+        printf( "error, %d\n", tok );
 
         return;
     }

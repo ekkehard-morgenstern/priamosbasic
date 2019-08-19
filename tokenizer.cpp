@@ -324,18 +324,18 @@ REDO:
         case UINT8_C(0X28): ++pos; return T_LPAREN;     // (
         case UINT8_C(0X29): ++pos; return T_RPAREN;     // )
         case UINT8_C(0X2A): ++pos; 
-            if ( pos >= sourceEnd ) return T_SYNERR;
+            if ( pos >= sourceEnd ) return T_TIMES;
             b = *pos;
             if ( b == UINT8_C(0X2A) ) { ++pos; return T_POW; }  // **, ^
             return T_TIMES;                             // *
         case UINT8_C(0X2B): ++pos; 
-            if ( pos >= sourceEnd ) return T_SYNERR;
+            if ( pos >= sourceEnd ) return T_PLUS;
             b = *pos;
             if ( b == UINT8_C(0X2B) ) { ++pos; return KW_INC; } // ++, INC
             return T_PLUS;                              // +
         case UINT8_C(0X2C): ++pos; return T_COMMA;      // ,
         case UINT8_C(0X2D): ++pos; 
-            if ( pos >= sourceEnd ) return T_SYNERR;
+            if ( pos >= sourceEnd ) return T_MINUS;
             b = *pos;
             if ( b == UINT8_C(0X2D) ) { ++pos; return KW_DEC; } // --, DEC
             return T_MINUS;                             // -
@@ -343,14 +343,14 @@ REDO:
         case UINT8_C(0X3A): ++pos; return T_COLON;      // :
         case UINT8_C(0X3B): ++pos; return T_SEMIC;      // ;
         case UINT8_C(0X3C): ++pos;
-            if ( pos >= sourceEnd ) return T_SYNERR;
+            if ( pos >= sourceEnd ) return T_LT;
             b = *pos;
             if ( b == UINT8_C(0X3D) ) { ++pos; return T_LE; } // <=
             if ( b == UINT8_C(0X3C) ) { ++pos; return KW_SHL; } // <<, SHL
             return T_LT;                                // <
         case UINT8_C(0X3D): ++pos;  return T_EQ;        // =
         case UINT8_C(0X3E): ++pos;
-            if ( pos >= sourceEnd ) return T_SYNERR;
+            if ( pos >= sourceEnd ) return T_GT;
             b = *pos;
             if ( b == UINT8_C(0X3D) ) { ++pos; return T_GE; } // >=
             if ( b == UINT8_C(0X3E) ) { ++pos; return KW_SHR; } // >>, SHR
@@ -580,7 +580,7 @@ bool Tokenizer::locationExprToken( uint16_t tok ) {
 uint16_t Tokenizer::tokenize() {
 
     bool first = true;
-    uint16_t prevTok = T_EOL, stickyTok = T_EOL;
+    uint16_t stickyTok = T_EOL;
     
     for (;;) {
         uint16_t tok = nextTok();
@@ -601,12 +601,10 @@ uint16_t Tokenizer::tokenize() {
 
         } else if ( tok == T_NUMLIT && isInt ) {
             // after certain tokens, a number is a line number
-            if ( locationToken( prevTok ) || stickyTok != T_EOL ) {
+            if ( stickyTok != T_EOL ) {
                 if ( intVal > (int64_t) UINT24_MAX || numBase != 10 ) return T_SYNERR;
                 if ( !storeLineNo() ) return T_MEMERR;
                 tok = T_LINENO;
-                if ( locationExprToken( prevTok ) ) stickyTok = tok;
-
             } else {
                 if ( !storeInt() ) return T_MEMERR;
             }
@@ -627,12 +625,11 @@ uint16_t Tokenizer::tokenize() {
             } else {
                 if ( !storeIdent() ) return T_MEMERR;
             }
-        } else if ( tok == T_IDENT && ( locationToken( prevTok ) || stickyTok != T_EOL ) ) {
+        } else if ( tok == T_IDENT && stickyTok != T_EOL ) {
             // identifier after certain keywords is a label
             if ( identDecorated() ) return T_SYNERR;
             if ( !storeLabel() ) return T_MEMERR;
             tok = T_LABEL;
-            if ( locationExprToken( prevTok ) ) stickyTok = tok;
 
         } else if ( tok == T_STRLIT ) {
             if ( first ) return T_SYNERR;
@@ -650,8 +647,8 @@ uint16_t Tokenizer::tokenize() {
         }
 
         if ( tok == T_COLON ) stickyTok = T_EOL;
+        else if ( locationToken( tok ) ) stickyTok = tok;
 
-        prevTok = tok;
         first = false;
     }
 

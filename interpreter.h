@@ -88,6 +88,9 @@ class Interpreter : public NonCopyable, protected BBMemMan {
     void enterLine( const Tokenizer& t );
     virtual void compact( ByteBuffer& buf );
 
+    static bool getLineNo( TokenScanner& scan, uint32_t& rLineNo );
+    static bool getLineNoExpr( TokenScanner& scan, uint32_t& lineNo1, 
+        uint32_t& lineNo2 );
     void list( TokenScanner& scan );
 
     void declare( uint16_t tok_, CmdMethodPtr mth_ );
