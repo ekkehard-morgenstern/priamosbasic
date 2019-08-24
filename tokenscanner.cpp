@@ -22,8 +22,9 @@
 
 #include "tokenscanner.h"
 
+TokenScanner::TokenScanner() : pos(0) {}
 TokenScanner::TokenScanner( const uint8_t* pos_ ) : pos(pos_) {}
-TokenScanner::~TokenScanner() {}
+TokenScanner::~TokenScanner() { pos = 0; }
 
 uint16_t TokenScanner::tokType() const {
     uint8_t b = *pos;

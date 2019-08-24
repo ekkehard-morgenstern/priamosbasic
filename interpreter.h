@@ -56,7 +56,7 @@
 #endif
 
 class Interpreter;
-typedef void (Interpreter::*CmdMethodPtr)( TokenScanner& scan );
+typedef void (Interpreter::*CmdMethodPtr)();
 
 struct CmdHashEnt : public HashEntry {
 
@@ -68,31 +68,64 @@ struct CmdHashEnt : public HashEntry {
 
 struct CmdDecl { uint16_t tok; CmdMethodPtr mth; };
 
+typedef void (Interpreter::*FnMethodPtr)();
+
+
+struct FnDecl { 
+    uint16_t    tok;    // keyword token
+    FuncType    type;   // type of function
+    uint8_t     nForm;  // number of formal arguments
+    uint8_t     nOpt;   // number of optional arguments
+    uint8_t     nRes;   // number of results
+    bool        bVarArgs;   // variable arguments list?
+    FnMethodPtr mth; 
+};
+
+struct FnArg : public FuncArg { // for FuncVal
+    Interpreter*    intp;
+    FnMethodPtr     mth; 
+};
+
+#define IIF_STR     1
+#define IIF_FN      2
+#define IIF_ARY     4
+
+struct IdentInfo {
+    const uint8_t*  name;
+    uint8_t         nLen;
+    ValDesc*        desc;
+    int             flags;  // see II* definitions above
+};
+
 class Interpreter : public NonCopyable {
 
-    Program     prog;
-    HashTable   commandHt;
-    Variables   vars;
+    Program         prog;
+    HashTable       commandHt;
+    Variables       vars;
+    TokenScanner    scan;
 
-    static const CmdDecl declTable[];
+    static const CmdDecl cmdDeclTable[];
+    static const FnDecl funcDeclTable[];
 
+    bool getIdentInfo( IdentInfo& ii );
 
-    bool getIdentInfo( TokenScanner& scan );
+    bool getLineNo( uint32_t& rLineNo );
+    bool getLineNoExpr( uint32_t& lineNo1, uint32_t& lineNo2 );
+    void list();
 
-    static bool getLineNo( TokenScanner& scan, uint32_t& rLineNo );
-    static bool getLineNoExpr( TokenScanner& scan, uint32_t& lineNo1, 
-        uint32_t& lineNo2 );
-    void list( TokenScanner& scan );
+    static void funcHandler( FuncArg* arg );
 
-    void declare( uint16_t tok_, CmdMethodPtr mth_ );
+    void declareCmd( const CmdDecl& decl );
+    void declareFunc( const FnDecl& decl );
+
     void declare(); // declare all of the built-in commands
+
+    // interpret a line of tokens (direct mode)
+    void interpret();
 
 public:
     Interpreter();
     virtual ~Interpreter();
-
-    // interpret a line of tokens (direct mode)
-    void interpret( TokenScanner& scan );
 
     // interpret a line in direct mode
     void interpretLine( const char* line );

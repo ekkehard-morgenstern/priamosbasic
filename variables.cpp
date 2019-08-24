@@ -140,7 +140,8 @@ FuncVal::FuncVal( FuncType type_, uint8_t nForm_, uint8_t nOpt_,
 
 FuncVal::~FuncVal() {
     type = FT_UNDEF; nForm = nOpt = nRes = 0; bVarArgs = false;
-    pFunc = 0; pFuncArg = 0;
+    pFunc = 0; 
+    if ( pFuncArg ) { delete pFuncArg; pFuncArg = 0; }
 }
 
 VarDesc::VarDesc( const uint8_t* name, size_t nameLen,

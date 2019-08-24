@@ -21,24 +21,53 @@
         Mail: Ekkehard Morgenstern, Mozartstr. 1, D-76744 Woerth am Rhein, Germany, Europe */
 
 #include "interpreter.h"
+#include "keywords.h"
 
 CmdHashEnt::CmdHashEnt( uint16_t& tok_, CmdMethodPtr mth_ )
     :   HashEntry( (const uint8_t*)(&tok_), 2U ), mth(mth_) {}
 CmdHashEnt::~CmdHashEnt() {}
 
-const CmdDecl Interpreter::declTable[] = {
+const CmdDecl Interpreter::cmdDeclTable[] = {
     { KW_LIST, &Interpreter::list },
     { 0, 0 }
 };
 
-bool Interpreter::getIdentInfo( TokenScanner& scan ) {
+const FnDecl Interpreter::funcDeclTable[] = {
+    { 0, FT_UNDEF, 0, 0, 0, false, 0 }
+};
+
+bool Interpreter::getIdentInfo( IdentInfo& ii ) {
     uint16_t tok = scan.tokType();
     if ( tok != T_IDENT ) return false;
-
-    return false;
+    ii.name = 0; ii.nLen = 0;
+    if ( !scan.getText( ii.name, ii.nLen ) || ii.name == 0 || 
+        ii.nLen == 0 ) {
+        throw Exception( "indentinfo error" );
+    }
+    ii.desc  = vars.findVar( ii.name, ii.nLen );
+    ii.flags = 0;
+    if ( ii.desc == 0 ) {
+        uint8_t x = ii.nLen - UINT8_C(1);
+        if ( ii.name[x] == UINT8_C(0X28) ) {  // (
+            ii.flags |= IIF_ARY | IIF_FN;
+            --x;
+        }
+        if ( ii.name[x] == UINT8_C(0X24) ) {  // $
+            ii.flags |= IIF_STR;
+        }
+    } else {
+        ValueType vt = ii.desc->type;
+        switch ( vt ) {
+            case VT_STR:    ii.flags |= IIF_STR; break;
+            case VT_ARY:    ii.flags |= IIF_ARY; break;
+            case VT_FUNC:   ii.flags |= IIF_FN;  break;
+            default:        break;
+        }
+    }
+    return true;
 }
 
-bool Interpreter::getLineNo( TokenScanner& scan, uint32_t& rLineNo ) {
+bool Interpreter::getLineNo( uint32_t& rLineNo ) {
    uint16_t tok = scan.tokType();
     if ( tok != T_LINENO ) return false;
     if ( !scan.getLineNo( rLineNo ) ) return false;
@@ -46,22 +75,22 @@ bool Interpreter::getLineNo( TokenScanner& scan, uint32_t& rLineNo ) {
     return true;
  }
 
-bool Interpreter::getLineNoExpr( TokenScanner& scan, uint32_t& lineNo1, uint32_t& lineNo2 ) {
-    bool hadFirst = getLineNo( scan, lineNo1 );
+bool Interpreter::getLineNoExpr( uint32_t& lineNo1, uint32_t& lineNo2 ) {
+    bool hadFirst = getLineNo( lineNo1 );
     uint16_t tok = scan.tokType();
     if ( tok == T_MINUS ) {
         if ( !scan.skipTok() ) return false;
-        getLineNo( scan, lineNo2 );
+        getLineNo( lineNo2 );
     } else if ( hadFirst ) {
         lineNo2 = lineNo1;
     }
     return true;
 }
 
-void Interpreter::list( TokenScanner& scan ) {
+void Interpreter::list() {
     uint32_t lineNo1 = 0;
     uint32_t lineNo2 = UINT32_MAX;
-    getLineNoExpr( scan, lineNo1, lineNo2 );
+    getLineNoExpr( lineNo1, lineNo2 );
     size_t count = prog.getLineInfoCount();
     for ( size_t pos=0; pos < count; ++pos ) {
         const LineInfo& li = prog.getLineInfoAt( pos );
@@ -76,14 +105,38 @@ void Interpreter::list( TokenScanner& scan ) {
     }
 }
 
-void Interpreter::declare( uint16_t tok_, CmdMethodPtr mth_ ) {
-    uint16_t tok = tok_;
-    commandHt.enter( new CmdHashEnt( tok, mth_ ) );
+void Interpreter::funcHandler( FuncArg* arg ) {
+    FnArg* fnArg = dynamic_cast<FnArg*>( arg );
+    if ( fnArg == 0 ) throw Exception( "bad function" );
+    FnMethodPtr mth = fnArg->mth;
+    (fnArg->intp->*mth)( );
+}
+
+void Interpreter::declareCmd( const CmdDecl& decl ) {
+    uint16_t tok = decl.tok;
+    commandHt.enter( new CmdHashEnt( tok, decl.mth ) );
+}
+
+void Interpreter::declareFunc( const FnDecl& decl ) {
+    const char* name = Keywords::getInstance().lookup( decl.tok );
+    if ( name == 0 ) throw Exception( "keyword not found" );
+    size_t nameLen = strlen( name );
+    FnArg* arg = new FnArg;
+    arg->intp = this;
+    arg->mth  = decl.mth;
+    FuncVal* val = new FuncVal( decl.type, decl.nForm, decl.nOpt, decl.nRes,
+        decl.bVarArgs, funcHandler, arg );
+    if ( !vars.addVar( (const uint8_t*) name, nameLen, val ) ) {
+        throw Exception( "failed to add var" );
+    }    
 }
 
 void Interpreter::declare() {
-    for ( int i=0; declTable[i].tok; ++i ) {
-        declare( declTable[i].tok, declTable[i].mth );
+    for ( int i=0; cmdDeclTable[i].tok; ++i ) {
+        declareCmd( cmdDeclTable[i] );
+    }
+    for ( int i=0; funcDeclTable[i].tok; ++i ) {
+        declareFunc( funcDeclTable[i] );
     }
 }
 
@@ -94,7 +147,7 @@ Interpreter::Interpreter() {
 Interpreter::~Interpreter() {
 }
 
-void Interpreter::interpret( TokenScanner& scan ) {
+void Interpreter::interpret() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok == T_EOL ) break;
@@ -109,7 +162,7 @@ void Interpreter::interpret( TokenScanner& scan ) {
                 throw Exception( "interpret error (type B)" );
             }
             CmdMethodPtr mth = cmd->mth;
-            (this->*mth)( scan );
+            (this->*mth)();
             continue;
         }
         throw Exception( "not implemented" );
@@ -125,7 +178,7 @@ void Interpreter::interpretLine( const char* line ) {
 
         return;
     }
-    TokenScanner scan( t.getTokBufAddr() );
+    scan.setPos( t.getTokBufAddr() );
     tok = scan.tokType();
     if ( tok == T_LINENO ) {
         uint32_t lineNo;
@@ -133,5 +186,5 @@ void Interpreter::interpretLine( const char* line ) {
         prog.enterLine( t );
         return;
     }
-    interpret( scan );
+    interpret();
 }

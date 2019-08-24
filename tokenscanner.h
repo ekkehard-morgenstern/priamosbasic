@@ -36,8 +36,11 @@ class TokenScanner : public NonCopyable {
     const uint8_t* pos;
 
 public:
+    TokenScanner();
     TokenScanner( const uint8_t* pos_ );
     virtual ~TokenScanner();
+
+    inline void setPos( const uint8_t* pos_ ) { pos = pos_; }
 
     uint16_t tokType() const;
     bool skipTok();
@@ -50,9 +53,7 @@ public:
 
     // T_NUMLIT, T_SBI
     bool getNumber( double& rVal ) const;
-    
-
-
+   
 };
 
 
