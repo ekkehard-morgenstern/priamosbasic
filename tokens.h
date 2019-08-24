@@ -163,6 +163,8 @@
 #define KW_SHL 0X0F0C
 #define KW_SHR 0X0F0D
 
+#define ISFUNCKW(x) ((x)>=0X0300 && (x)<=0X03FF)
+
 #define T_EOL           0X00
 #define T_KWBNKC        0X03
 #define T_IDENT         0X05

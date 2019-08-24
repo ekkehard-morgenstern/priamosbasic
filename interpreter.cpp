@@ -38,13 +38,27 @@ const FnDecl Interpreter::funcDeclTable[] = {
 
 bool Interpreter::getIdentInfo( IdentInfo& ii ) {
     uint16_t tok = scan.tokType();
-    if ( tok != T_IDENT ) return false;
+    if ( tok == T_IDENT ) {
     ii.name = 0; ii.nLen = 0;
-    if ( !scan.getText( ii.name, ii.nLen ) || ii.name == 0 || 
-        ii.nLen == 0 ) {
-        throw Exception( "indentinfo error" );
+        if ( !scan.getText( ii.name, ii.nLen ) || ii.name == 0 || 
+            ii.nLen == 0 ) {
+            throw Exception( "token error" );
+        }
+        ii.desc  = vars.findVar( ii.name, ii.nLen );
+    } else if ( ISFUNCKW( tok ) ) {
+        const char* text = Keywords::getInstance().lookup( tok );
+        if ( text == 0 ) {
+            throw Exception( "keyword not registered" );
+        }
+        ii.name = (const uint8_t*) text;
+        ii.nLen = ii.name[-1];
+        ii.desc = vars.findVar( ii.name, ii.nLen );
+        if ( ii.desc == 0 ) {
+            throw Exception( "function keyword not implemented" );
+        }
+    } else {
+        return false;
     }
-    ii.desc  = vars.findVar( ii.name, ii.nLen );
     ii.flags = 0;
     if ( ii.desc == 0 ) {
         uint8_t x = ii.nLen - UINT8_C(1);
@@ -118,15 +132,16 @@ void Interpreter::declareCmd( const CmdDecl& decl ) {
 }
 
 void Interpreter::declareFunc( const FnDecl& decl ) {
-    const char* name = Keywords::getInstance().lookup( decl.tok );
-    if ( name == 0 ) throw Exception( "keyword not found" );
-    size_t nameLen = strlen( name );
+    const char* name0 = Keywords::getInstance().lookup( decl.tok );
+    if ( name0 == 0 ) throw Exception( "keyword not found" );
+    const uint8_t* name    = (const uint8_t*) name0;
+    size_t         nameLen = name[-1];
     FnArg* arg = new FnArg;
     arg->intp = this;
     arg->mth  = decl.mth;
     FuncVal* val = new FuncVal( decl.type, decl.nForm, decl.nOpt, decl.nRes,
         decl.bVarArgs, funcHandler, arg );
-    if ( !vars.addVar( (const uint8_t*) name, nameLen, val ) ) {
+    if ( !vars.addVar( name, nameLen, val ) ) {
         throw Exception( "failed to add var" );
     }    
 }
