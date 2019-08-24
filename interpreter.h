@@ -47,16 +47,13 @@
 #include "detokenizer.h"
 #endif
 
-// initial program buffer size
-#define INTP_PRGSIZE        16384U
-#define INTP_MINLINEINFO    1024U
+#ifndef VARIABLES_H
+#include "variables.h"
+#endif
 
-struct LineInfo {
-    uint32_t lineNo;    // line number
-    uint32_t offset;    // offset in program buffer
-    uint32_t length;    // length of line in bytes (incl. T_EOL)
-    uint32_t pad_;      // (padding)
-};
+#ifndef PROGRAM_H
+#include "program.h"
+#endif
 
 class Interpreter;
 typedef void (Interpreter::*CmdMethodPtr)( TokenScanner& scan );
@@ -69,24 +66,18 @@ struct CmdHashEnt : public HashEntry {
     virtual ~CmdHashEnt();
 };
 
-class Interpreter : public NonCopyable, protected BBMemMan {
+struct CmdDecl { uint16_t tok; CmdMethodPtr mth; };
 
-    ByteBuffer  prg;
-    LineInfo*   lineInfo;
-    size_t      lineInfoCount;
-    size_t      lineInfoAlloc;
-    uint32_t    lastLineNumber;
-    bool        haveLastLineNumber;
+class Interpreter : public NonCopyable {
+
+    Program     prog;
     HashTable   commandHt;
+    Variables   vars;
 
-    void expandLineInfo();
-    void appendLineInfo( const LineInfo& src );
-    void insertLineInfo( const LineInfo& src, size_t pos );
-    void insertLineInfo( const LineInfo& src );
-    void deleteLineInfoAt( size_t pos );
-    void deleteLineInfo( uint32_t lineNo );
-    void enterLine( const Tokenizer& t );
-    virtual void compact( ByteBuffer& buf );
+    static const CmdDecl declTable[];
+
+
+    bool getIdentInfo( TokenScanner& scan );
 
     static bool getLineNo( TokenScanner& scan, uint32_t& rLineNo );
     static bool getLineNoExpr( TokenScanner& scan, uint32_t& lineNo1, 

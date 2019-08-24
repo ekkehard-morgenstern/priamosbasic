@@ -26,142 +26,16 @@ CmdHashEnt::CmdHashEnt( uint16_t& tok_, CmdMethodPtr mth_ )
     :   HashEntry( (const uint8_t*)(&tok_), 2U ), mth(mth_) {}
 CmdHashEnt::~CmdHashEnt() {}
 
-void Interpreter::expandLineInfo() {
-    size_t    newAlloc    = lineInfoAlloc * 2U;
-    LineInfo* newLineInfo = new LineInfo[ newAlloc ];
-    if ( lineInfoCount ) {
-        memcpy( newLineInfo, lineInfo, sizeof(LineInfo) * lineInfoCount );
-    }
-    delete [] lineInfo;
-    lineInfo      = newLineInfo;
-    lineInfoAlloc = newAlloc;
-}
+const CmdDecl Interpreter::declTable[] = {
+    { KW_LIST, &Interpreter::list },
+    { 0, 0 }
+};
 
-void Interpreter::appendLineInfo( const LineInfo& src ) {
-    if ( lineInfoCount >= lineInfoAlloc ) expandLineInfo();
-    lineInfo[lineInfoCount++] = src;
-    lastLineNumber = src.lineNo;
-    haveLastLineNumber = true;
-}
-
-void Interpreter::insertLineInfo( const LineInfo& src, size_t pos ) {
-    if ( pos >= lineInfoCount ) {
-        appendLineInfo( src );
-        return;
-    }
-    if ( lineInfoCount >= lineInfoAlloc ) expandLineInfo();
-    size_t remain = lineInfoCount - pos;
-    memmove( &lineInfo[pos+1], &lineInfo[pos], sizeof(LineInfo) * remain );
-    lineInfo[pos] = src;
-    lineInfoCount++;
-}
-
-void Interpreter::insertLineInfo( const LineInfo& src ) {
-    if ( !haveLastLineNumber || src.lineNo > lastLineNumber ) {
-        appendLineInfo( src );
-        return;
-    }
-    if ( src.lineNo == lastLineNumber ) {
-        lineInfo[lineInfoCount-1] = src;
-        return;
-    }
-    for ( size_t pos=0; pos < lineInfoCount; ++pos ) {
-        if ( src.lineNo == lineInfo[pos].lineNo ) {
-            lineInfo[pos] = src;
-            return;
-        }
-        if ( src.lineNo < lineInfo[pos].lineNo ) {
-            insertLineInfo( src, pos );
-            return;
-        }
-    }
-    appendLineInfo( src );
-}
-
-void Interpreter::deleteLineInfoAt( size_t pos ) {
-    if ( pos >= lineInfoCount ) return;
-    if ( pos == lineInfoCount-1U ) {
-        --lineInfoCount;
-        return;
-    }
-    size_t remain = lineInfoCount-1U-pos;
-    memmove( &lineInfo[pos], &lineInfo[pos+1], sizeof(LineInfo) * remain );
-    --lineInfoCount;
-}
-
-void Interpreter::deleteLineInfo( uint32_t lineNo ) {
-    for ( size_t pos=0; pos < lineInfoCount; ++pos ) {
-        if ( lineInfo[pos].lineNo == lineNo ) {
-            deleteLineInfoAt( pos );
-            break;
-        }
-    }
-    if ( haveLastLineNumber && lastLineNumber == lineNo ) {
-        if ( lineInfoCount > 0U ) {
-            lastLineNumber = lineInfo[lineInfoCount-1U].lineNo;
-        } else {
-            lastLineNumber = 0;
-            haveLastLineNumber = false;
-        }
-    }
-}
-
-void Interpreter::enterLine( const Tokenizer& t ) {
-    const uint8_t* addr = t.getTokBufAddr();
-    size_t         size = t.getTokBufSz();
-    TokenScanner scan( addr );
+bool Interpreter::getIdentInfo( TokenScanner& scan ) {
     uint16_t tok = scan.tokType();
-    if ( tok != T_LINENO ) return;
-    uint32_t lineNo;
-    if ( !scan.getLineNo( lineNo ) ) return;
-    if ( !scan.skipTok() ) return;
-    tok = scan.tokType();
-    if ( tok == T_EOL ) {
-        // delete line
-        deleteLineInfo( lineNo );
-        return;
-    }
-#if SIZE_MAX > UINT32_MAX
-    if ( prg.getWritePos() > UINT32_MAX ) return;
-#endif
-    // otherwise, add or replace line
-    LineInfo li;
-    li.lineNo = lineNo;
-    li.offset = (uint32_t) prg.getWritePos();
-    if ( !prg.writeBlock( addr, size ) ) return;
-#if SIZE_MAX > UINT32_MAX
-    if ( prg.getWritePos() > UINT32_MAX ) return;
-#endif
-    li.length = ( (uint32_t) prg.getWritePos() ) - li.offset;
-    insertLineInfo( li );
-}
+    if ( tok != T_IDENT ) return false;
 
-void Interpreter::compact( ByteBuffer& buf ) {
-    if ( buf.getWritePos() == 0 ) return; // ?? should NOT occur
-    ByteBuffer tmp( buf.getWritePos() );
-    size_t tgtPos = 0;
-    for ( size_t pos=0; pos < lineInfoCount; ++pos ) {
-        LineInfo& li = lineInfo[pos];
-        buf.setReadPos( li.offset );
-        const uint8_t* ptr = buf.readBlock( li.length );
-        if ( ptr == 0 ) {
-            throw Exception( "compact error (type A)" );
-        }
-        li.offset = tgtPos;
-        if ( tmp.writeBlock( ptr, li.length ) ) {
-            tgtPos += li.length;
-        } else {
-            throw Exception( "compact error (type B)" );
-        }
-    }
-    buf.setWritePos(0);
-    if ( tmp.getWritePos() > 0U ) {
-        buf.clrMemMgr(); // avoid recursion (*IF* that ever happens)
-        if ( !buf.writeBlock( tmp.getBaseAddr(), tmp.getWritePos() ) ) {
-            throw Exception( "compact error (type C)" );
-        }
-        buf.setMemMgr( *this );
-    }
+    return false;
 }
 
 bool Interpreter::getLineNo( TokenScanner& scan, uint32_t& rLineNo ) {
@@ -188,11 +62,12 @@ void Interpreter::list( TokenScanner& scan ) {
     uint32_t lineNo1 = 0;
     uint32_t lineNo2 = UINT32_MAX;
     getLineNoExpr( scan, lineNo1, lineNo2 );
-    for ( size_t pos=0; pos < lineInfoCount; ++pos ) {
-        const LineInfo& li = lineInfo[pos];
+    size_t count = prog.getLineInfoCount();
+    for ( size_t pos=0; pos < count; ++pos ) {
+        const LineInfo& li = prog.getLineInfoAt( pos );
         if ( li.lineNo < lineNo1 || li.lineNo > lineNo2 ) continue;
-        prg.setReadPos( li.offset );
-        const uint8_t* ptr = prg.readBlock( li.length );
+        prog.setReadPos( li.offset );
+        const uint8_t* ptr = prog.readBlock( li.length );
         if ( ptr == 0 ) throw Exception( "list error (type A)" );
         Detokenizer d( ptr );
         const char* text = d.detokenize();
@@ -207,21 +82,16 @@ void Interpreter::declare( uint16_t tok_, CmdMethodPtr mth_ ) {
 }
 
 void Interpreter::declare() {
-    declare( KW_LIST, &Interpreter::list );
+    for ( int i=0; declTable[i].tok; ++i ) {
+        declare( declTable[i].tok, declTable[i].mth );
+    }
 }
 
-Interpreter::Interpreter() : prg( INTP_PRGSIZE ) {
-    lineInfo      = new LineInfo [ INTP_MINLINEINFO ];
-    lineInfoCount = 0;
-    lineInfoAlloc = INTP_MINLINEINFO;
-    lastLineNumber = 0;
-    haveLastLineNumber = false;
-    prg.setMemMgr( *this );
+Interpreter::Interpreter() {    
     declare();
 }
 
 Interpreter::~Interpreter() {
-    delete [] lineInfo;
 }
 
 void Interpreter::interpret( TokenScanner& scan ) {
@@ -260,7 +130,7 @@ void Interpreter::interpretLine( const char* line ) {
     if ( tok == T_LINENO ) {
         uint32_t lineNo;
         if ( !scan.getLineNo( lineNo ) ) return;
-        enterLine( t );
+        prog.enterLine( t );
         return;
     }
     interpret( scan );
