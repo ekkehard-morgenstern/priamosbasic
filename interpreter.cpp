@@ -37,15 +37,25 @@ const FnDecl Interpreter::funcDeclTable[] = {
 };
 
 bool Interpreter::getIdentInfo( IdentInfo& ii ) {
-    uint16_t tok = scan.tokType();
-    if ( tok == T_IDENT ) {
-    ii.name = 0; ii.nLen = 0;
+    uint16_t tok = scan.tokType(); bool isFN = false;
+    if ( tok == KW_FN ) {   // small function reference
+        if ( !scan.skipTok() ) {
+            throw Exception( "syntax error " );
+        }
+        tok = scan.tokType();
+        if ( tok != T_IDENT ) {
+            throw Exception( "syntax error" );
+        }
+        isFN = true;
+        goto IDENT;
+    } else if ( tok == T_IDENT ) { // variable or function (declared, or undeclared)
+IDENT:  ii.name = 0; ii.nLen = 0;
         if ( !scan.getText( ii.name, ii.nLen ) || ii.name == 0 || 
             ii.nLen == 0 ) {
             throw Exception( "token error" );
         }
         ii.desc  = vars.findVar( ii.name, ii.nLen );
-    } else if ( ISFUNCKW( tok ) ) {
+    } else if ( ISFUNCKW( tok ) ) { // functional keyword (built-in function)
         const char* text = Keywords::getInstance().lookup( tok );
         if ( text == 0 ) {
             throw Exception( "keyword not registered" );
@@ -61,21 +71,35 @@ bool Interpreter::getIdentInfo( IdentInfo& ii ) {
     }
     ii.flags = 0;
     if ( ii.desc == 0 ) {
+        // undeclared variable or function: guess intended type
         uint8_t x = ii.nLen - UINT8_C(1);
         if ( ii.name[x] == UINT8_C(0X28) ) {  // (
-            ii.flags |= IIF_ARY | IIF_FN;
+            if ( isFN ) {
+                ii.flags |= IIF_FN;
+            } else {
+                ii.flags |= IIF_ARY | IIF_FN;
+            }
             --x;
         }
         if ( ii.name[x] == UINT8_C(0X24) ) {  // $
             ii.flags |= IIF_STR;
         }
     } else {
+        // known variable or function: read type
         ValueType vt = ii.desc->type;
-        switch ( vt ) {
-            case VT_STR:    ii.flags |= IIF_STR; break;
-            case VT_ARY:    ii.flags |= IIF_ARY; break;
-            case VT_FUNC:   ii.flags |= IIF_FN;  break;
-            default:        break;
+        if ( isFN ) {
+            if ( vt == VT_FUNC ) {
+                ii.flags |= IIF_FN;
+            } else {
+                throw Exception( "function expected" );
+            }
+        } else {
+            switch ( vt ) {
+                case VT_STR:    ii.flags |= IIF_STR; break;
+                case VT_ARY:    ii.flags |= IIF_ARY; break;
+                case VT_FUNC:   ii.flags |= IIF_FN;  break;
+                default:        break;
+            }
         }
     }
     return true;
@@ -123,7 +147,7 @@ void Interpreter::funcHandler( FuncArg* arg ) {
     FnArg* fnArg = dynamic_cast<FnArg*>( arg );
     if ( fnArg == 0 ) throw Exception( "bad function" );
     FnMethodPtr mth = fnArg->mth;
-    (fnArg->intp->*mth)( );
+    (fnArg->intp->*mth)();
 }
 
 void Interpreter::declareCmd( const CmdDecl& decl ) {

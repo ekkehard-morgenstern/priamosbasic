@@ -109,7 +109,7 @@ struct FuncVal : public ValDesc {
     bool        bVarArgs;   // variable arguments list?
     // callable function in system space (must be specified)
     FuncPtr     pFunc;      // function address
-    FuncArg*    pFuncArg;   // function argument)
+    FuncArg*    pFuncArg;   // function argument
 
     FuncVal( va_list ap );
     FuncVal( FuncType type_, uint8_t nForm_, uint8_t nOpt_,

@@ -107,6 +107,84 @@ class Interpreter : public NonCopyable {
     static const CmdDecl cmdDeclTable[];
     static const FnDecl funcDeclTable[];
 
+    /* expressions:
+
+        -- 'identifier' here means an identifier of which the purpose
+        -- has not been determined yet (undeclared variable). If it's used
+        -- as a regular variable, it can be declared on the fly, otherwise
+        -- it would be an error (array not dimensioned / function not declared).
+        -- small functions declared with DEF FN can be recognized by the FN
+        -- modifier keyword.
+        -- 'func-kw' refers to a 'functional keyword', i.e. a built-in function.
+
+        num-ident := [ 'FN' ] num-identifier | num-variable | num-func-kw .
+        str-ident := [ 'FN' ] str-identifier | str-variable | str-func-kw .
+
+        -- in this syntax, the '(' is expressly mentioned for consistency, although 
+        -- in reality, it is actually part of the identifier name.
+
+        num-ident-expr := num-ident [ '(' expr-list ')' ] .
+        str-ident-expr := str-ident [ '(' expr-list ')' ] .
+
+        -- operator precedence checked with the ANSI BASIC standard.
+        -- Priamos BASIC offers more operators, so we're basing our
+        -- precedence on some common sense from other languages too.
+        -- For instance, in ANSI BASIC *only*, things like X^-Y have
+        -- to be put in parenthesis: X^(-Y), while in all Microsoft
+        -- BASIC derivates, they don't. 
+
+        num-base-expr := num-ident-expr | '(' num-expr ')' .
+        sign-op       := '-' | '+' .
+        signed-expr   := [ sign-op ] num-base-expr .
+        not-op        := 'NOT' .
+        not-expr      := [ not-op ] signed-expr .
+        mult-op       := '*' | '/' .
+        mult-expr     := not-expr { mult-op not-expr } .
+        pow-op        := '**' | '^' .
+        pow-expr      := mult-expr { pow-op mult-expr } .
+        add-op        := '-' | '+' .
+        add-expr      := pow-expr { add-op pow-expr } .
+        shift-op      := 'SHL' | 'SHR' .
+        shift-expr    := add-expr [ shift-op add-expr ] .
+        num-expr      := shift-expr .
+        cmp-op        := '<' | '>' | '<=' | '>=' | '=' | '<>' .
+        cmp-expr      := shift-expr [ cmp-op shift-expr ] .
+        and-op        := 'AND' | 'NAND' .
+        and-expr      := cmp-expr { and-op cmp-expr } .
+        or-op         := 'OR' | 'XOR' | 'NOR' | 'XNOR' .
+        or-expr       := and-expr { log-op and-expr } .
+        num-expr      := or-expr .
+
+        -- string expressions
+
+        str-base-expr := str-ident-expr .
+        concat-op     := '+' .
+        concat-expr   := str-base-expr { concat-op str-base-expr } .
+        str-expr      := concat-expr .
+
+        -- assignments
+        -- LEFT$(), MID$(), RIGHT$() etc. have a special status as they can
+        -- be used on the left side of assignments. Is automatically handled
+        -- by the syntax here by the definition of str-ident-expr.
+
+        num-left-side  := num-ident-expr .
+        num-right-side := num-expr .
+        num-assignment := num-left-side '=' num-right-side .
+        
+        str-left-side  := str-ident-expr .
+        str-right-side := str-expr .
+        str-assignment := str-left-side '=' str-right-side .
+
+        assignment     := [ 'LET' ] ( num-assignment | str-assignment ) .
+
+        -- general expressions
+
+        expr          := num-expr | str-expr .
+        expr-list     := expr { ',' expr } .
+
+        TODO: perhaps move this to an extra file, 'expressions.ebnf' or so.
+    */
+
     bool getIdentInfo( IdentInfo& ii );
 
     bool getLineNo( uint32_t& rLineNo );
