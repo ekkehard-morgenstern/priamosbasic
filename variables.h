@@ -53,6 +53,12 @@ struct ValDesc : public NonCopyable {
     virtual ~ValDesc();
 
     static ValDesc* create( ValueType type_, ... );
+
+    virtual double getNumVal() const;
+    virtual void setNumVal( double val );
+
+    virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
+    virtual void setStrVal( const uint8_t* ptr, size_t len );
 };
 
 struct IntVal : public ValDesc {
@@ -60,6 +66,12 @@ struct IntVal : public ValDesc {
 
     IntVal();
     virtual ~IntVal();
+
+    virtual double getNumVal() const;
+    virtual void setNumVal( double val );
+
+    virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
+    virtual void setStrVal( const uint8_t* ptr, size_t len );
 };
 
 struct RealVal : public ValDesc {
@@ -67,6 +79,12 @@ struct RealVal : public ValDesc {
 
     RealVal();
     virtual ~RealVal();
+
+    virtual double getNumVal() const;
+    virtual void setNumVal( double val );
+
+    virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
+    virtual void setStrVal( const uint8_t* ptr, size_t len );
 };
 
 struct StrVal : public ValDesc {
@@ -76,6 +94,12 @@ struct StrVal : public ValDesc {
     StrVal();
     StrVal( const uint8_t* text_, size_t len_ );
     virtual ~StrVal();
+
+    virtual double getNumVal() const;
+    virtual void setNumVal( double val );
+
+    virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
+    virtual void setStrVal( const uint8_t* ptr, size_t len_ );
 };
 
 struct AryVal : public ValDesc {

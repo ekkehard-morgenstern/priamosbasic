@@ -69,3 +69,29 @@ void hexDump( const void* addr, size_t size ) {
         }
     }
 }
+
+void format( uint8_t*& rOut, size_t& rLen, const char* fmt, ... ) {
+    va_list ap; va_start( ap, fmt );
+    uint8_t tmp[1024]; uint8_t* tmp2 = 0;
+    int len = vsnprintf( (char*) tmp, sizeof(tmp), fmt, ap );
+    va_end( ap );
+    if ( len < 0 ) {
+        len = 0;
+    } else if ( len >= 1024 ) {
+        tmp2 = new uint8_t [ len + 1 ];
+        va_start( ap, fmt );
+        int len2 = vsnprintf( (char*) tmp, len+1, fmt, ap );
+        va_end( ap );
+        if ( len2 < 0 ) {
+            len = 0;
+        } else if ( len2 < len ) {
+            len = len2;
+        }
+        rOut = tmp2;
+        rLen = len;
+        return;
+    }
+    rOut = new uint8_t [ len ];
+    rLen = len;
+    if ( len ) memcpy( rOut, tmp, len );
+}

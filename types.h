@@ -62,4 +62,6 @@ union U_IntReal32 {
 
 void hexDump( const void* addr, size_t size );
 
+void format( uint8_t*& rOut, size_t& rLen, const char* fmt, ... );
+
 #endif

@@ -230,13 +230,44 @@ bool Interpreter::getStrIdentExpr( IdentInfo& ii ) {
     return true;
 }
 
+ExprInfo* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
+
+    if ( ii.desc == 0 ) {
+        throw Exception( "interpret error: unexpected value" );
+    }
+
+    ExprInfo* ei = new ExprInfo;
+    ei->value = ValDesc::create( vt );
+
+    switch ( ii.desc->type ) {
+        uint8_t* ptr; size_t len; bool bFree;
+        case VT_INT:
+        case VT_REAL:
+            ei->value->setNumVal( ii.desc->getNumVal() );
+            break;
+        case VT_STR:
+            ptr = 0; len = 0; bFree = false;
+            ii.desc->getStrVal( ptr, len, bFree );
+            ei->value->setStrVal( ptr, len );
+            if ( bFree ) delete [] ptr;
+            break;
+        case VT_ARY:
+        case VT_FUNC:
+        default:
+            delete ei;
+            throw Exception( "interpret error: not implemented" );
+    }
+
+    return ei;
+}
+
 ExprInfo* Interpreter::getNumBaseExpr() {
     // num-base-expr := num-ident-expr | num-const | '(' num-expr ')' .
 
     IdentInfo ii;
     if ( getNumIdentExpr( ii ) ) {
         // identifier expression, array and function
-
+        return evalIdentExpr( ii, VT_REAL );
     }
 
     // TBD
@@ -245,7 +276,14 @@ ExprInfo* Interpreter::getNumBaseExpr() {
 
 ExprInfo* Interpreter::getStrBaseExpr() {
     // str-base-expr := str-ident-expr | str-const .
-    
+
+    IdentInfo ii;
+    if ( getStrIdentExpr( ii ) ) {
+        // identifier expression, array and function
+        return evalIdentExpr( ii, VT_STR );
+    }
+
+
     // TBD
     return 0;
 }

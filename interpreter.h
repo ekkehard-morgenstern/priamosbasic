@@ -227,6 +227,9 @@ class Interpreter : public NonCopyable {
     void getIdentArgs( IdentInfo& ii );
         // gets parameters for ident expr (used by getNumIdentExpr/getStrIdentExpr)
 
+    ExprInfo* evalIdentExpr( IdentInfo& ii, ValueType vt );
+        // evaluates an identifier expression
+
     bool getNumIdentExpr( IdentInfo& ii );
         // gets a numeric identifier, possibly with arguments.
 

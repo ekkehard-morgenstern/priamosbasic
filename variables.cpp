@@ -22,6 +22,7 @@
 
 #include "variables.h"
 #include "exception.h"
+#include "tokenizer.h"
 
 
 ValDesc::ValDesc( ValueType type_ ) : type(type_) {}
@@ -37,11 +38,79 @@ ValDesc* ValDesc::create( ValueType type_, ... ) {
     return 0;
 }
 
+double ValDesc::getNumVal() const { return 0; }
+void ValDesc::setNumVal( double val ) {}
+
+void ValDesc::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
+    static uint8_t b;
+    rPtr = &b; rLen = 0; rFree = false;
+}
+
+void ValDesc::setStrVal( const uint8_t* ptr, size_t len ) {}
+
 IntVal::IntVal() : ValDesc(VT_INT), value(0) {}
 IntVal::~IntVal() { value = 0; }
 
+double IntVal::getNumVal() const { return (double) value; }
+void IntVal::setNumVal( double val ) { value = (int64_t) trunc( val ); }
+
+void IntVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {    
+    format( rPtr, rLen, "%" PRId64, value );
+    rFree = true;
+}
+
+void IntVal::setStrVal( const uint8_t* ptr, size_t len ) {
+    Tokenizer t( ptr, len );
+    uint16_t tok = t.nextTok(); bool minus = false;
+    if ( tok == T_MINUS ) {
+        minus = true;
+        tok   = t.nextTok();
+    } else if ( tok == T_PLUS ) {
+        tok   = t.nextTok();
+    }
+    if ( tok == T_NUMLIT ) {
+        if ( t.numIsInt() ) {
+            value = t.numIVal();
+        } else {
+            value = (int64_t) trunc( t.numRVal() );
+        }
+        if ( minus ) value = -value;
+    } else {
+        value = 0;
+    }
+}
+
 RealVal::RealVal() : ValDesc(VT_REAL), value(0) {}
 RealVal::~RealVal() { value = 0; }
+
+double RealVal::getNumVal() const { return value; }
+void RealVal::setNumVal( double val ) { value = val; }
+
+void RealVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
+    format( rPtr, rLen, "%g", value );
+    rFree = true;
+}
+
+void RealVal::setStrVal( const uint8_t* ptr, size_t len ) {
+    Tokenizer t( ptr, len );
+    uint16_t tok = t.nextTok(); bool minus = false;
+    if ( tok == T_MINUS ) {
+        minus = true;
+        tok   = t.nextTok();
+    } else if ( tok == T_PLUS ) {
+        tok   = t.nextTok();
+    }
+    if ( tok == T_NUMLIT ) {
+        if ( t.numIsInt() ) {
+            value = t.numIVal();
+        } else {
+            value = t.numRVal();
+        }
+        if ( minus ) value = -value;
+    } else {
+        value = 0;
+    }
+}
 
 StrVal::StrVal() : ValDesc(VT_STR) {
     text = new uint8_t [0];
@@ -57,6 +126,28 @@ StrVal::StrVal( const uint8_t* text_, size_t len_ )
     
 StrVal::~StrVal() {
     delete [] text; text = 0; len = 0;
+}
+
+double StrVal::getNumVal() const { 
+    RealVal tmp;
+    tmp.setStrVal( text, len );
+    return tmp.value;
+}
+
+void StrVal::setNumVal( double val ) {
+    delete [] text;
+    format( text, len, "%g", val );
+}
+
+void StrVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
+    rPtr = text; rLen = len; rFree = false;
+}
+
+void StrVal::setStrVal( const uint8_t* ptr, size_t len_ ) {
+    delete [] text;
+    text = new uint8_t [ len_ ];
+    if ( len_ ) memcpy( text, ptr, len_ );
+    len  = len_;
 }
 
 void AryVal::init() {
