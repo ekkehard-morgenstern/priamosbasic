@@ -154,6 +154,9 @@ void AryVal::init() {
     if ( elemType == VT_ARY || elemType == VT_FUNC ) {
         throw Exception( "array type impossible" );
     }
+    if ( arrayType != AT_STATIC && ndims != 1U ) {
+        throw Exception( "array type impossible" );
+    }
     totalSize = 0;
     for ( size_t i=0; i < ndims; ++i ) {
         size_t dim = dims[i];
@@ -169,10 +172,16 @@ void AryVal::init() {
     for ( size_t i=0; i < totalSize; i++ ) {
         cells[i] = ValDesc::create( elemType );
     }
+    if ( arrayType == AT_ASSOC ) {
+        ht = new HashTable();
+    } else {
+        ht = 0;
+    }
 }
 
 AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
     elemType  = (ValueType) va_arg( ap, int );
+    arrayType = (ArrayType) va_arg( ap, int );
     ndims     = va_arg( ap, size_t );
     dims      = new size_t [ ndims ];
     for ( size_t i=0; i < ndims; ++i ) {
@@ -181,8 +190,8 @@ AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
     init();
 }
 
-AryVal::AryVal( ValueType elemType_, size_t ndims_, ... ) 
-    : ValDesc(VT_ARY), elemType(elemType_), ndims(ndims_) {
+AryVal::AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, ... ) 
+    : ValDesc(VT_ARY), elemType(elemType_), arrayType(arrayType_), ndims(ndims_) {
     va_list ap;
     va_start( ap, ndims_ );
     dims = new size_t [ ndims ];
@@ -193,8 +202,8 @@ AryVal::AryVal( ValueType elemType_, size_t ndims_, ... )
     init();
 }
 
-AryVal::AryVal( ValueType elemType_, size_t ndims_, 
-    const size_t* dims_ ) : ValDesc(VT_ARY), elemType(elemType_),
+AryVal::AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, 
+    const size_t* dims_ ) : ValDesc(VT_ARY), elemType(elemType_), arrayType(arrayType_),
     ndims(ndims_) {
     dims = new size_t [ ndims ];
     if ( ndims ) memcpy( dims, dims_, sizeof(size_t) * ndims );
@@ -202,6 +211,7 @@ AryVal::AryVal( ValueType elemType_, size_t ndims_,
 }
 
 AryVal::~AryVal() {
+    if ( ht ) { delete ht; ht = 0; }
     while ( totalSize ) {
         --totalSize;
         if ( cells[totalSize] ) { 

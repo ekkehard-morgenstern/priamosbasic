@@ -36,6 +36,12 @@ enum ValueType {
     VT_FUNC,    // a function variable
 };
 
+enum ArrayType {
+    AT_STATIC,  // regular, static array (multiple dimensions)
+    AT_DYNAMIC, // 1-dimensional dynamic array
+    AT_ASSOC    // 1-dimensional associative array
+};
+
 enum FuncType {
     FT_UNDEF,   // undefined
     FT_SYS,     // a system function
@@ -104,14 +110,16 @@ struct StrVal : public ValDesc {
 
 struct AryVal : public ValDesc {
     ValueType   elemType;   // element type
+    ArrayType   arrayType;  // array type
     size_t      ndims;      // number of dimensions
     size_t      totalSize;  // number of total cells
     size_t*     dims;       // dimensions (sizes)
     ValDesc**   cells;      // array cells
+    HashTable*  ht;         // hash table for associative arrays
 
     AryVal( va_list ap );
-    AryVal( ValueType elemType_, size_t ndims_, ... );
-    AryVal( ValueType elemType_, size_t ndims_, 
+    AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, ... );
+    AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, 
         const size_t* dims_ );
     virtual ~AryVal();
 
