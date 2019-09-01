@@ -41,6 +41,7 @@ public:
     virtual ~TokenScanner();
 
     inline void setPos( const uint8_t* pos_ ) { pos = pos_; }
+    inline const uint8_t* getPos() const { return pos; }
 
     uint16_t tokType() const;
     bool skipTok();

@@ -90,11 +90,31 @@ struct FnArg : public FuncArg { // for FuncVal
 #define IIF_FN      2
 #define IIF_ARY     4
 
+struct ExprList;
+
 struct IdentInfo {
     const uint8_t*  name;
     uint8_t         nLen;
     ValDesc*        desc;
     int             flags;  // see II* definitions above
+    ExprList*       param;  // arguments
+    IdentInfo();
+    ~IdentInfo();
+};
+
+struct ExprInfo {
+    ExprInfo*       next;
+    ValDesc*        value;  // transient -- will be discarded
+    ExprInfo();
+    ~ExprInfo();
+};
+
+struct ExprList {
+    ExprInfo*       first;
+    ExprInfo*       last;
+    ExprList();
+    ~ExprList();
+    void add( ExprInfo* expr );
 };
 
 class Interpreter : public NonCopyable {
@@ -133,7 +153,7 @@ class Interpreter : public NonCopyable {
         -- to be put in parenthesis: X^(-Y), while in all Microsoft
         -- BASIC derivates, they don't. 
 
-        num-base-expr := num-ident-expr | '(' num-expr ')' .
+        num-base-expr := num-ident-expr | num-const | '(' num-expr ')' .
         sign-op       := '-' | '+' .
         signed-expr   := [ sign-op ] num-base-expr .
         not-op        := 'NOT' .
@@ -157,7 +177,7 @@ class Interpreter : public NonCopyable {
 
         -- string expressions
 
-        str-base-expr := str-ident-expr .
+        str-base-expr := str-ident-expr | str-const .
         concat-op     := '+' .
         concat-expr   := str-base-expr { concat-op str-base-expr } .
         str-expr      := concat-expr .
@@ -185,7 +205,51 @@ class Interpreter : public NonCopyable {
         TODO: perhaps move this to an extra file, 'expressions.ebnf' or so.
     */
 
+    void skipTok();
+        // convenience function that skips the current token.
+
     bool getIdentInfo( IdentInfo& ii );
+        // getIdentInfo() peeks at the current token without swallowing it.
+        // A potential preceding 'FN' keyword is not skipped, and the main identifier 
+        // or variable token is not skipped either. Both must be done by the caller.
+
+    void getIdentAuto( IdentInfo& ii, ValueType vt );
+        // auto-creates simple variables for IdentInfo (used by getNumIdent/getStrIdent)
+
+    bool getNumIdent( IdentInfo& ii );
+        // gets a numeric identifier at the current position, creating it on the fly,
+        // if possible. The token(s) belonging to the identifier are skipped.
+
+    bool getStrIdent( IdentInfo& ii );
+        // gets a string identifier at the current position, creating it on the fly,
+        // if possible. The token(s) belonging to the identifier are skipped.
+
+    void getIdentArgs( IdentInfo& ii );
+        // gets parameters for ident expr (used by getNumIdentExpr/getStrIdentExpr)
+
+    bool getNumIdentExpr( IdentInfo& ii );
+        // gets a numeric identifier, possibly with arguments.
+
+    bool getStrIdentExpr( IdentInfo& ii );
+        // gets a string identifier, possibly with arguments.
+
+    ExprInfo* getNumBaseExpr();
+        // gets a numeric base expression (incl. evaluation)
+
+    ExprInfo* getStrBaseExpr();
+        // gets a string base expression (incl. evaluation)
+
+    ExprInfo* getNumExpr();
+        // gets a numeric expression with a transient ValDesc
+
+    ExprInfo* getStrExpr();
+        // gets a string expression with a transient ValDesc
+
+    ExprInfo* getExpr();
+        // gets any expression with a transient ValDesc
+
+    ExprList* getExprList();
+        // gets any expression list
 
     bool getLineNo( uint32_t& rLineNo );
     bool getLineNoExpr( uint32_t& lineNo1, uint32_t& lineNo2 );
@@ -197,6 +261,8 @@ class Interpreter : public NonCopyable {
     void declareFunc( const FnDecl& decl );
 
     void declare(); // declare all of the built-in commands
+    void clearVars( bool declareOnly = false ); 
+        // clear all variables, then redeclare built-in stuff
 
     // interpret a line of tokens (direct mode)
     void interpret();
