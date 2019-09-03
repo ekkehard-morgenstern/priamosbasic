@@ -38,8 +38,11 @@ ValDesc* ValDesc::create( ValueType type_, ... ) {
     return 0;
 }
 
-double ValDesc::getNumVal() const { return 0; }
-void ValDesc::setNumVal( double val ) {}
+int64_t ValDesc::getIntVal() const { return 0; }
+void ValDesc::setIntVal( int64_t val ) {}
+
+double ValDesc::getRealVal() const { return 0; }
+void ValDesc::setRealVal( double val ) {}
 
 void ValDesc::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
     static uint8_t b;
@@ -51,8 +54,11 @@ void ValDesc::setStrVal( const uint8_t* ptr, size_t len ) {}
 IntVal::IntVal() : ValDesc(VT_INT), value(0) {}
 IntVal::~IntVal() { value = 0; }
 
-double IntVal::getNumVal() const { return (double) value; }
-void IntVal::setNumVal( double val ) { value = (int64_t) trunc( val ); }
+int64_t IntVal::getIntVal() const { return value; }
+void IntVal::setIntVal( int64_t val ) { value = val; }
+
+double IntVal::getRealVal() const { return (double) value; }
+void IntVal::setRealVal( double val ) { value = (int64_t) trunc( val ); }
 
 void IntVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {    
     format( rPtr, rLen, "%" PRId64, value );
@@ -83,8 +89,11 @@ void IntVal::setStrVal( const uint8_t* ptr, size_t len ) {
 RealVal::RealVal() : ValDesc(VT_REAL), value(0) {}
 RealVal::~RealVal() { value = 0; }
 
-double RealVal::getNumVal() const { return value; }
-void RealVal::setNumVal( double val ) { value = val; }
+int64_t RealVal::getIntVal() const { return (int64_t) trunc(value); }
+void RealVal::setIntVal( int64_t val ) { value = (double) val; }
+
+double RealVal::getRealVal() const { return value; }
+void RealVal::setRealVal( double val ) { value = val; }
 
 void RealVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
     format( rPtr, rLen, "%g", value );
@@ -102,7 +111,7 @@ void RealVal::setStrVal( const uint8_t* ptr, size_t len ) {
     }
     if ( tok == T_NUMLIT ) {
         if ( t.numIsInt() ) {
-            value = t.numIVal();
+            value = (double) t.numIVal();
         } else {
             value = t.numRVal();
         }
@@ -128,13 +137,24 @@ StrVal::~StrVal() {
     delete [] text; text = 0; len = 0;
 }
 
-double StrVal::getNumVal() const { 
+int64_t StrVal::getIntVal() const { 
+    IntVal tmp;
+    tmp.setStrVal( text, len );
+    return tmp.value;
+}
+
+void StrVal::setIntVal( int64_t val ) {
+    delete [] text;
+    format( text, len, "%" PRId64, val );
+}
+
+double StrVal::getRealVal() const { 
     RealVal tmp;
     tmp.setStrVal( text, len );
     return tmp.value;
 }
 
-void StrVal::setNumVal( double val ) {
+void StrVal::setRealVal( double val ) {
     delete [] text;
     format( text, len, "%g", val );
 }
@@ -221,6 +241,65 @@ AryVal::~AryVal() {
     delete [] cells; cells = 0; 
     delete [] dims; dims = 0; ndims = 0;
     elemType = VT_UNDEF;
+}
+
+FuncArg::FuncArg() {
+    pArgs = new ValDesc* [ 5 ];
+    fArgs = new bool     [ 5 ];
+    nArgs = 0;
+    aArgs = 5;
+    pRes  = new ValDesc* [ 3 ];
+    fRes  = new bool     [ 3 ];
+    nRes  = 0;
+    aRes  = 3;
+}
+
+FuncArg::~FuncArg() {
+    delete [] fRes;  fRes  = 0;
+    delete [] pRes;  pRes  = 0;
+    delete [] fArgs; fArgs = 0;
+    delete [] pArgs; pArgs = 0;
+    aRes = nRes = aArgs = nArgs = 0;
+}
+
+void FuncArg::addArg( ValDesc* arg, bool fFree ) {
+    if ( nArgs >= aArgs ) {
+        size_t newSz = aArgs * 2U;
+        if ( nArgs >= newSz ) newSz = nArgs + 1U;
+        ValDesc** pArgsNew = new ValDesc* [ newSz ];
+        bool*     fArgsNew = new bool     [ newSz ];
+        if ( nArgs ) {
+            memcpy( (void*)(&pArgsNew[0]), (void*)(&pArgs[0]),
+                sizeof(ValDesc*) * nArgs );
+            memcpy( &fArgsNew[0], &fArgs[0], sizeof(bool) * nArgs );
+        }
+        delete [] fArgs; fArgs = fArgsNew;
+        delete [] pArgs; pArgs = pArgsNew;
+        aArgs = newSz;
+    }
+    pArgs[nArgs] = arg;
+    fArgs[nArgs] = fFree;
+    ++nArgs;
+}
+
+void FuncArg::addRes( ValDesc* res, bool fFree ) {
+    if ( nRes >= aRes ) {
+        size_t newSz = aRes * 2U;
+        if ( nRes >= newSz ) newSz = nRes + 1U;
+        ValDesc** pResNew = new ValDesc* [ newSz ];
+        bool*     fResNew = new bool     [ newSz ];
+        if ( nRes ) {
+            memcpy( (void*)(&pResNew[0]), (void*)(&pRes[0]),
+                sizeof(ValDesc*) * nRes );
+            memcpy( &fResNew[0], &fRes[0], sizeof(bool) * nRes );
+        }
+        delete [] fRes; fRes = fResNew;
+        delete [] pRes; pRes = pResNew;
+        aRes = newSz;
+    }
+    pRes[nRes] = res;
+    fRes[nRes] = fFree;
+    ++nRes;
 }
 
 FuncVal::FuncVal( va_list ap ) : ValDesc(VT_FUNC) {

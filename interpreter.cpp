@@ -116,8 +116,10 @@ IDENT:  ii.name = 0; ii.nLen = 0;
             }
             --x;
         }
-        if ( ii.name[x] == UINT8_C(0X24) ) {  // $
+        if ( ii.name[x] == UINT8_C(0X24) ) {        // $
             ii.flags |= IIF_STR;
+        } else if ( ii.name[x] == UINT8_C(0X25) ) { // %
+            ii.flags |= IIF_INT;
         }
     } else {
         // known variable or function: read type
@@ -139,6 +141,8 @@ IDENT:  ii.name = 0; ii.nLen = 0;
             }
         } else {
             switch ( vt ) {
+                case VT_INT:    ii.flags |= IIF_INT; break;
+                // VT_REAL doesn't require special flag
                 case VT_STR:    ii.flags |= IIF_STR; break;
                 case VT_ARY:    ii.flags |= IIF_ARY; break;
                 case VT_FUNC:   ii.flags |= IIF_FN;  break;
@@ -242,8 +246,10 @@ ExprInfo* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
     switch ( ii.desc->type ) {
         uint8_t* ptr; size_t len; bool bFree;
         case VT_INT:
+            ei->value->setIntVal( ii.desc->getIntVal() );
+            break;
         case VT_REAL:
-            ei->value->setNumVal( ii.desc->getNumVal() );
+            ei->value->setRealVal( ii.desc->getRealVal() );
             break;
         case VT_STR:
             ptr = 0; len = 0; bFree = false;
@@ -267,7 +273,8 @@ ExprInfo* Interpreter::getNumBaseExpr() {
     IdentInfo ii;
     if ( getNumIdentExpr( ii ) ) {
         // identifier expression, array and function
-        return evalIdentExpr( ii, VT_REAL );
+        ValueType vt = ii.flags & IIF_INT ? VT_INT : VT_REAL;
+        return evalIdentExpr( ii, vt );
     }
 
     // TBD

@@ -86,9 +86,10 @@ struct FnArg : public FuncArg { // for FuncVal
     FnMethodPtr     mth; 
 };
 
-#define IIF_STR     1
-#define IIF_FN      2
-#define IIF_ARY     4
+#define IIF_INT     1
+#define IIF_STR     2
+#define IIF_FN      4
+#define IIF_ARY     8
 
 struct ExprList;
 

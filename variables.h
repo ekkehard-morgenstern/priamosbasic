@@ -60,8 +60,11 @@ struct ValDesc : public NonCopyable {
 
     static ValDesc* create( ValueType type_, ... );
 
-    virtual double getNumVal() const;
-    virtual void setNumVal( double val );
+    virtual int64_t getIntVal() const;
+    virtual void setIntVal( int64_t val );
+
+    virtual double getRealVal() const;
+    virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
     virtual void setStrVal( const uint8_t* ptr, size_t len );
@@ -73,8 +76,11 @@ struct IntVal : public ValDesc {
     IntVal();
     virtual ~IntVal();
 
-    virtual double getNumVal() const;
-    virtual void setNumVal( double val );
+    virtual int64_t getIntVal() const;
+    virtual void setIntVal( int64_t val );
+
+    virtual double getRealVal() const;
+    virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
     virtual void setStrVal( const uint8_t* ptr, size_t len );
@@ -86,8 +92,11 @@ struct RealVal : public ValDesc {
     RealVal();
     virtual ~RealVal();
 
-    virtual double getNumVal() const;
-    virtual void setNumVal( double val );
+    virtual int64_t getIntVal() const;
+    virtual void setIntVal( int64_t val );
+
+    virtual double getRealVal() const;
+    virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
     virtual void setStrVal( const uint8_t* ptr, size_t len );
@@ -101,8 +110,11 @@ struct StrVal : public ValDesc {
     StrVal( const uint8_t* text_, size_t len_ );
     virtual ~StrVal();
 
-    virtual double getNumVal() const;
-    virtual void setNumVal( double val );
+    virtual int64_t getIntVal() const;
+    virtual void setIntVal( int64_t val );
+
+    virtual double getRealVal() const;
+    virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
     virtual void setStrVal( const uint8_t* ptr, size_t len_ );
@@ -128,6 +140,22 @@ private:
 };
 
 struct FuncArg : public NonCopyable {
+
+    ValDesc**   pArgs;  // arguments
+    bool*       fArgs;  // free argument?
+    size_t      nArgs;  // number used
+    size_t      aArgs;  // number allocated
+
+    ValDesc**   pRes;   // results
+    bool*       fRes;   // free result?
+    size_t      nRes;   // number used
+    size_t      aRes;   // number allocated
+
+    FuncArg();
+    virtual ~FuncArg();
+
+    void addArg( ValDesc* arg, bool fFree );
+    void addRes( ValDesc* res, bool fFree );
 
 };
 
