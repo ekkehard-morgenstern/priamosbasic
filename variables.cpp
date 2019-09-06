@@ -324,6 +324,11 @@ FuncVal::~FuncVal() {
     if ( pFuncArg ) { delete pFuncArg; pFuncArg = 0; }
 }
 
+void FuncVal::call() {
+    pFunc( pFuncArg );
+}
+
+
 VarDesc::VarDesc( const uint8_t* name, size_t nameLen,
     ValDesc* valueDesc_ ) : HashEntry( name, nameLen ),
     valueDesc(valueDesc_) {}

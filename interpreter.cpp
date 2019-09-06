@@ -34,11 +34,15 @@ IdentInfo::~IdentInfo() {
     if ( param ) { delete param; param = 0; }
 }
 
-ExprInfo::ExprInfo() : next(0), value(0) {}
+ExprInfo::ExprInfo( ValDesc* value_, bool bFree_ ) : next(0), value(value_),
+    bFree(bFree_) {}
 
 ExprInfo::~ExprInfo() {
-    if ( next ) { delete next; next = 0; }
-    delete value; 
+    if ( next  ) { delete next ; next = 0; }
+    if ( value ) { 
+        if ( bFree ) delete value; 
+        value = 0; 
+    }
 }
 
 ExprList::ExprList() : first(0), last(0) {}
@@ -54,6 +58,25 @@ void ExprList::add( ExprInfo* expr ) {
     } else {
         last->next = expr;
         last       = expr;
+    }
+}
+
+void ExprList::moveFrom( ExprList* exprList ) {
+    if ( !last ) {
+        first = exprList->first; exprList->first = 0;
+        last  = exprList->last;  exprList->last  = 0;
+    } else {
+        last->next = exprList->first; exprList->first = 0;
+        last       = exprList->last;  exprList->last  = 0;
+    }
+}
+
+void ExprList::addFirst( ExprInfo* expr ) {
+    if ( !first ) {
+        first = last = expr;
+    } else {
+        expr->next = first;
+        first      = expr;
     }
 }
 
@@ -205,11 +228,11 @@ void Interpreter::getIdentArgs( IdentInfo& ii ) {
         ExprList* el = getExprList();
         uint16_t tok = scan.tokType();
         if ( tok != T_RPAREN ) {
-            delete el;
+            if ( el ) delete el;
             throw Exception( "syntax error: closing parenthesis ')' expected" );
         }
         if ( !scan.skipTok() ) {
-            delete el;
+            if ( el ) delete el;
             throw Exception( "interpret error: bad token" );
         }
         ii.param = el;
@@ -234,40 +257,86 @@ bool Interpreter::getStrIdentExpr( IdentInfo& ii ) {
     return true;
 }
 
-ExprInfo* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
+void Interpreter::fillFuncArgs( FnArg& args, ExprList* el ) {
+    // move values from expression list to argument object
+    if ( el ) {
+        ExprInfo* ei = el->first;
+        while ( ei ) {
+            args.addArg( ei->detachValue(), true );
+            ei = ei->next;
+        }
+    }
+}
+
+void Interpreter::fillFuncRes( ExprList* el, FnArg& args ) {
+    // move values from argument object to expression list
+    for (;;) {
+        ValDesc* val = args.detachResultBackwards();
+        if ( val == 0 ) break;
+        el->addFirst( new ExprInfo( val, true ) );
+    }
+}
+
+void Interpreter::verifyFuncArgs( FuncVal* fn, const FnArg& args ) {
+    size_t nArgs = args.nArgs;
+    if ( nArgs < fn->nForm ) {
+        throw Exception( "syntax error: not enough arguments for function call" );
+    }
+    if ( nArgs > ((size_t)fn->nForm) + ((size_t)fn->nOpt) && !fn->bVarArgs ) {
+        throw Exception( "syntax error: too many arguments for function call" );
+    }
+}
+
+bool Interpreter::verifyFuncRes( FuncVal* fn, const FnArg& args ) {
+    size_t nRes = args.nRes;
+    if ( nRes != fn->nRes ) {
+        throw Exception( "bad function: invalid number of results" );
+    }    
+    return true;
+}
+
+ExprList* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
 
     if ( ii.desc == 0 ) {
         throw Exception( "interpret error: unexpected value" );
     }
 
-    ExprInfo* ei = new ExprInfo;
-    ei->value = ValDesc::create( vt );
+    ExprList* res = new ExprList();
 
-    switch ( ii.desc->type ) {
-        uint8_t* ptr; size_t len; bool bFree;
-        case VT_INT:
-            ei->value->setIntVal( ii.desc->getIntVal() );
-            break;
-        case VT_REAL:
-            ei->value->setRealVal( ii.desc->getRealVal() );
-            break;
-        case VT_STR:
-            ptr = 0; len = 0; bFree = false;
-            ii.desc->getStrVal( ptr, len, bFree );
-            ei->value->setStrVal( ptr, len );
-            if ( bFree ) delete [] ptr;
-            break;
-        case VT_ARY:
-        case VT_FUNC:
-        default:
-            delete ei;
-            throw Exception( "interpret error: not implemented" );
+    try {
+        switch ( ii.desc->type ) {
+            case VT_INT:
+            case VT_REAL:
+            case VT_STR:
+                res->add( new ExprInfo( ii.desc, false ) );
+                break;
+            case VT_FUNC:
+            case VT_ARY:
+                if ( ii.desc->type == VT_FUNC ) {
+                    FuncVal* fn = dynamic_cast<FuncVal*>( ii.desc );
+                    if ( fn == 0 ) throw Exception( "interpret error: bad function call" );
+                    FnArg args;
+                    fillFuncArgs( args, ii.param );
+                    verifyFuncArgs( fn, args );
+                    fn->call();
+                    verifyFuncRes( fn, args );
+                    fillFuncRes( res, args );
+                } else {    // VT_ARY
+                    // TODO: array case
+                }
+                break;
+            default:
+                throw Exception( "interpret error: not implemented" );
+        }
+    } catch ( const Exception& xcpt ) {
+        delete res;
+        throw;  // re-throw exception
     }
 
-    return ei;
+    return res;
 }
 
-ExprInfo* Interpreter::getNumBaseExpr() {
+ExprList* Interpreter::getNumBaseExpr() {
     // num-base-expr := num-ident-expr | num-const | '(' num-expr ')' .
 
     IdentInfo ii;
@@ -281,7 +350,7 @@ ExprInfo* Interpreter::getNumBaseExpr() {
     return 0;
 }
 
-ExprInfo* Interpreter::getStrBaseExpr() {
+ExprList* Interpreter::getStrBaseExpr() {
     // str-base-expr := str-ident-expr | str-const .
 
     IdentInfo ii;
@@ -295,48 +364,48 @@ ExprInfo* Interpreter::getStrBaseExpr() {
     return 0;
 }
 
-ExprInfo* Interpreter::getNumExpr() {
+ExprList* Interpreter::getNumExpr() {
     // TBD
     return 0;
 }
 
-ExprInfo* Interpreter::getStrExpr() {
+ExprList* Interpreter::getStrExpr() {
     // TBD
     return 0;
 }
 
-ExprInfo* Interpreter::getExpr() {
-    ExprInfo* ei = getNumExpr();
-    if ( ei ) return ei;
+ExprList* Interpreter::getExpr() {
+    ExprList* el = getNumExpr();
+    if ( el ) return el;
     return getStrExpr();
 }
 
 ExprList* Interpreter::getExprList() {
 
-    ExprInfo* ei = getExpr();
-    if ( ei == 0 ) return 0;
+    ExprList* el = getExpr();
+    if ( el == 0 ) return 0;
 
-    ExprList* el = new ExprList();
+    ExprList* res = new ExprList();
 
     for (;;) {
-        el->add( ei );
+        res->moveFrom( el );
 
         uint16_t tok = scan.tokType();
         if ( tok != T_COMMA ) break;
 
         if ( !scan.skipTok() ) {
-            delete el;
+            delete res;
             throw Exception( "interpret error: bad token" );
         }
 
-        ei = getExpr();
-        if ( ei == 0 ) {
-            delete el;
+        el = getExpr();
+        if ( el == 0 ) {
+            delete res;
             throw Exception( "syntax error: expression expected after comma" );
         }
     }
 
-    return el;
+    return res;
 }
 
 bool Interpreter::getLineNo( uint32_t& rLineNo ) {
@@ -381,7 +450,7 @@ void Interpreter::funcHandler( FuncArg* arg ) {
     FnArg* fnArg = dynamic_cast<FnArg*>( arg );
     if ( fnArg == 0 ) throw Exception( "call error: bad function" );
     FnMethodPtr mth = fnArg->mth;
-    (fnArg->intp->*mth)();
+    (fnArg->intp->*mth)( fnArg );
 }
 
 void Interpreter::declareCmd( const CmdDecl& decl ) {

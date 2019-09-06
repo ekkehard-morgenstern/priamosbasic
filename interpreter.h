@@ -68,7 +68,7 @@ struct CmdHashEnt : public HashEntry {
 
 struct CmdDecl { uint16_t tok; CmdMethodPtr mth; };
 
-typedef void (Interpreter::*FnMethodPtr)();
+typedef void (Interpreter::*FnMethodPtr)( FuncArg* );
 
 
 struct FnDecl { 
@@ -93,7 +93,7 @@ struct FnArg : public FuncArg { // for FuncVal
 
 struct ExprList;
 
-struct IdentInfo {
+struct IdentInfo : public NonCopyable {
     const uint8_t*  name;
     uint8_t         nLen;
     ValDesc*        desc;
@@ -103,19 +103,24 @@ struct IdentInfo {
     ~IdentInfo();
 };
 
-struct ExprInfo {
+struct ExprInfo : public NonCopyable {
     ExprInfo*       next;
-    ValDesc*        value;  // transient -- will be discarded
-    ExprInfo();
+    ValDesc*        value;  // transient -- might be discarded
+    bool            bFree;  // whether to discard value after use
+    ExprInfo( ValDesc* value_, bool bFree_ );
     ~ExprInfo();
+
+    inline ValDesc* detachValue() { ValDesc* ret = value; value = 0; return ret; }
 };
 
-struct ExprList {
+struct ExprList : public NonCopyable {
     ExprInfo*       first;
     ExprInfo*       last;
     ExprList();
     ~ExprList();
     void add( ExprInfo* expr );
+    void moveFrom( ExprList* exprList );
+    void addFirst( ExprInfo* expr );
 };
 
 class Interpreter : public NonCopyable {
@@ -228,7 +233,19 @@ class Interpreter : public NonCopyable {
     void getIdentArgs( IdentInfo& ii );
         // gets parameters for ident expr (used by getNumIdentExpr/getStrIdentExpr)
 
-    ExprInfo* evalIdentExpr( IdentInfo& ii, ValueType vt );
+    static void fillFuncArgs( FnArg& args, ExprList* el );
+        // moves arguments from expression list to FnArg object.
+
+    static void fillFuncRes( ExprList* el, FnArg& args );
+        // moves arguments from FnArg object to expression list.
+
+    static void verifyFuncArgs( FuncVal* fn, const FnArg& args );
+        // verifies that number of arguments is accurate for function call.
+
+    static bool verifyFuncRes( FuncVal* fn, const FnArg& args );
+        // verifies that number of results is accurate for function call.
+
+    ExprList* evalIdentExpr( IdentInfo& ii, ValueType vt );
         // evaluates an identifier expression
 
     bool getNumIdentExpr( IdentInfo& ii );
@@ -237,19 +254,19 @@ class Interpreter : public NonCopyable {
     bool getStrIdentExpr( IdentInfo& ii );
         // gets a string identifier, possibly with arguments.
 
-    ExprInfo* getNumBaseExpr();
+    ExprList* getNumBaseExpr();
         // gets a numeric base expression (incl. evaluation)
 
-    ExprInfo* getStrBaseExpr();
+    ExprList* getStrBaseExpr();
         // gets a string base expression (incl. evaluation)
 
-    ExprInfo* getNumExpr();
+    ExprList* getNumExpr();
         // gets a numeric expression with a transient ValDesc
 
-    ExprInfo* getStrExpr();
+    ExprList* getStrExpr();
         // gets a string expression with a transient ValDesc
 
-    ExprInfo* getExpr();
+    ExprList* getExpr();
         // gets any expression with a transient ValDesc
 
     ExprList* getExprList();

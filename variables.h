@@ -157,6 +157,11 @@ struct FuncArg : public NonCopyable {
     void addArg( ValDesc* arg, bool fFree );
     void addRes( ValDesc* res, bool fFree );
 
+    inline ValDesc* detachResultBackwards() {
+        if ( nRes == 0 ) return 0;
+        return pRes[--nRes];
+    }
+
 };
 
 typedef void (*FuncPtr)( FuncArg* );
@@ -176,6 +181,8 @@ struct FuncVal : public ValDesc {
         uint8_t nRes_, bool bVarArgs_, FuncPtr pFunc_, 
         FuncArg* pFuncArg_ );
     virtual ~FuncVal();
+
+    void call();
 };
 
 struct VarDesc : public HashEntry {    // variable descriptor
