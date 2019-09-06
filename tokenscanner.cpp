@@ -86,7 +86,20 @@ bool TokenScanner::getLineNo( uint32_t& rLineNo ) const {
     return true;
 }
 
-bool TokenScanner::getNumber( double& rVal ) const {
+bool TokenScanner::isInt() const {
+    uint8_t b = *pos;
+    if ( b == T_SBI ) return true;
+    if ( b != T_NUMLIT ) return false;
+    b = pos[1] & UINT8_C(0X0F);
+    switch ( b ) {
+        case NL_I8: case NL_I16: case NL_I32: case NL_I64:
+            return true;
+        default: break;
+    }
+    return false;
+}
+
+bool TokenScanner::getInt( int64_t& rVal ) const {
     uint8_t b = *pos;
     if ( b == T_SBI ) {
         rVal = (int8_t) pos[1];
@@ -110,7 +123,7 @@ bool TokenScanner::getNumber( double& rVal ) const {
               ( ((uint16_t)pos[4]) << UINT8_C( 8) ) |
                            pos[5]                   ;
             if ( b == NL_I32 ) { rVal = (int32_t) ir32.ival; return true; }
-            rVal = ir32.rval;
+            rVal = (int64_t) truncf( ir32.rval );
             return true;
         case NL_I64: case NL_F64:
             U_IntReal64 ir64;
@@ -123,7 +136,53 @@ bool TokenScanner::getNumber( double& rVal ) const {
               ( ((uint32_t)pos[7]) << UINT8_C(16) ) |
               ( ((uint16_t)pos[8]) << UINT8_C( 8) ) |
                            pos[9]                   ;
-            if ( b == NL_I64 ) { rVal = (int64_t) ir64.ival; return true; }
+            if ( b == NL_I64 ) { rVal = ir64.ival; return true; }
+            rVal = (int64_t) trunc( ir64.rval );
+            return true;
+        default: break;
+    }
+    return false;
+}
+
+
+bool TokenScanner::getReal( double& rVal ) const {
+    uint8_t b = *pos;
+    if ( b == T_SBI ) {
+        rVal = (double)( (int8_t) pos[1] );
+        return true;
+    }
+    if ( b != T_NUMLIT ) return false;
+    b = pos[1] & UINT8_C(0X0F);
+    switch ( b ) {
+        case NL_I8:
+            rVal = (double)( (int8_t) pos[2] );
+            return true;
+        case NL_I16:
+            rVal = (double)( (int16_t) ( ( ((uint16_t)pos[2]) << UINT8_C(8) ) | 
+                pos[3] ) );
+            return true;
+        case NL_I32: case NL_F32:
+            U_IntReal32 ir32;
+            ir32.ival =
+              ( ((uint32_t)pos[2]) << UINT8_C(24) ) |
+              ( ((uint32_t)pos[3]) << UINT8_C(16) ) |
+              ( ((uint16_t)pos[4]) << UINT8_C( 8) ) |
+                           pos[5]                   ;
+            if ( b == NL_I32 ) { rVal = (double)( (int32_t) ir32.ival ); return true; }
+            rVal = (double) ir32.rval;
+            return true;
+        case NL_I64: case NL_F64:
+            U_IntReal64 ir64;
+            ir64.ival =
+              ( ((uint64_t)pos[2]) << UINT8_C(56) ) |
+              ( ((uint64_t)pos[3]) << UINT8_C(48) ) |
+              ( ((uint64_t)pos[4]) << UINT8_C(40) ) |
+              ( ((uint64_t)pos[5]) << UINT8_C(32) ) |
+              ( ((uint32_t)pos[6]) << UINT8_C(24) ) |
+              ( ((uint32_t)pos[7]) << UINT8_C(16) ) |
+              ( ((uint16_t)pos[8]) << UINT8_C( 8) ) |
+                           pos[9]                   ;
+            if ( b == NL_I64 ) { rVal = (double)( (int64_t) ir64.ival ); return true; }
             rVal = ir64.rval;
             return true;
         default: break;

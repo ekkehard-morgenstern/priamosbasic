@@ -105,9 +105,10 @@ struct RealVal : public ValDesc {
 struct StrVal : public ValDesc {
     uint8_t*    text;
     size_t      len;
+    bool        bFree;  // true = regular; false = constant (don't delete)
 
     StrVal();
-    StrVal( const uint8_t* text_, size_t len_ );
+    StrVal( const uint8_t* text_, size_t len_, bool bFree_ );
     virtual ~StrVal();
 
     virtual int64_t getIntVal() const;
@@ -117,7 +118,7 @@ struct StrVal : public ValDesc {
     virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
-    virtual void setStrVal( const uint8_t* ptr, size_t len_ );
+    virtual void setStrVal( const uint8_t* ptr, size_t len_, bool bFree_ );
 };
 
 struct AryVal : public ValDesc {

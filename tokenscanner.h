@@ -53,8 +53,9 @@ public:
     bool getLineNo( uint32_t& rLineNo ) const;
 
     // T_NUMLIT, T_SBI
-    bool getNumber( double& rVal ) const;
-   
+    bool isInt() const;
+    bool getInt ( int64_t& rVal ) const;
+    bool getReal( double & rVal ) const;
 };
 
 

@@ -172,7 +172,6 @@ class Interpreter : public NonCopyable {
         add-expr      := pow-expr { add-op pow-expr } .
         shift-op      := 'SHL' | 'SHR' .
         shift-expr    := add-expr [ shift-op add-expr ] .
-        num-expr      := shift-expr .
         cmp-op        := '<' | '>' | '<=' | '>=' | '=' | '<>' .
         cmp-expr      := shift-expr [ cmp-op shift-expr ] .
         and-op        := 'AND' | 'NAND' .
@@ -259,6 +258,33 @@ class Interpreter : public NonCopyable {
 
     ExprList* getStrBaseExpr();
         // gets a string base expression (incl. evaluation)
+
+    ExprList* getSignedExpr();
+        // gets a numeric signed expression (incl. evaluation)
+
+    ExprList* getNotExpr();
+        // gets a numeric NOT expression (incl. evaluation)
+
+    ExprList* getMultExpr();
+        // gets a numeric multiplication expression (incl. evaluation)
+
+    ExprList* getPowExpr();
+        // gets a numeric power expression (incl. evaluation)
+
+    ExprList* getAddExpr();
+        // gets a numeric addition expression (incl. evaluation)
+
+    ExprList* getShiftExpr();
+        // gets a shift expression (incl. evaluation)
+
+    ExprList* getCmpExpr();
+        // gets a comparison expression (incl. evaluation)
+
+    ExprList* getAndExpr();
+        // gets an AND expression (incl. evaluation)
+
+    ExprList* getOrExpr();
+        // gets an OR expression (incl. evaluation)
 
     ExprList* getNumExpr();
         // gets a numeric expression with a transient ValDesc

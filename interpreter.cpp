@@ -346,7 +346,44 @@ ExprList* Interpreter::getNumBaseExpr() {
         return evalIdentExpr( ii, vt );
     }
 
-    // TBD
+    uint16_t tok = scan.tokType();
+    if ( tok == T_NUMLIT || tok == T_SBI ) {
+        if ( scan.isInt() ) {
+            IntVal* val = new IntVal();
+            if ( !scan.getInt( val->value ) || !scan.skipTok() ) {
+                delete val;
+                throw Exception( "interpret error: bad int token" );
+            }
+            ExprList* el = new ExprList();
+            el->add( new ExprInfo( val, true ) );
+            return el;           
+        } 
+        RealVal* val = new RealVal();
+        if ( !scan.getReal( val->value ) || !scan.skipTok() ) {
+            delete val;
+            throw Exception( "interpret error: bad real token" );
+        }
+        ExprList* el = new ExprList();
+        el->add( new ExprInfo( val, true ) );
+        return el;
+    }
+
+    if ( tok == T_LPAREN ) {
+        skipTok();
+        ExprList* el = getNumExpr();
+        if ( el == 0 ) throw Exception( "syntax error: expression expected" );
+        tok = scan.tokType();
+        if ( tok != T_RPAREN ) {
+            delete el;
+            throw Exception( "syntax error: closing parenthesis ')' expected" );
+        }
+        if ( !scan.skipTok() ) {
+            delete el;
+            throw Exception( "interpret error: bad token" );
+        }
+        return el;
+    }
+
     return 0;
 }
 
@@ -359,14 +396,99 @@ ExprList* Interpreter::getStrBaseExpr() {
         return evalIdentExpr( ii, VT_STR );
     }
 
+    uint16_t tok = scan.tokType();
+    if ( tok == T_STRLIT ) {
+        const uint8_t* text = 0; uint8_t len = 0;
+        if ( !scan.getText( text, len ) || !scan.skipTok() ) {
+            throw Exception( "interpret error: bad string token" );
+        }
+        ExprList* el = new ExprList();
+        el->add( new ExprInfo( new StrVal( text, len, false ), true ) );
+        return el;
+    }
+
+    return 0;
+}
+
+ExprList* Interpreter::getSignedExpr() {
+    // sign-op     := '-' | '+' .
+    // signed-expr := [ sign-op ] num-base-expr .
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getNotExpr() {
+    // not-op   := 'NOT' .
+    // not-expr := [ not-op ] signed-expr .
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getMultExpr() {
+    // mult-op   := '*' | '/' .
+    // mult-expr := not-expr { mult-op not-expr } .
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getPowExpr() {
+    // pow-op   := '**' | '^' .
+    // pow-expr := mult-expr { pow-op mult-expr } .
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getAddExpr() {
+    // add-op   := '-' | '+' .
+    // add-expr := pow-expr { add-op pow-expr } .
+
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getShiftExpr() {
+    // shift-op   := 'SHL' | 'SHR' .
+    // shift-expr := add-expr [ shift-op add-expr ] .
+
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getCmpExpr() {
+    // cmp-op   := '<' | '>' | '<=' | '>=' | '=' | '<>' .
+    // cmp-expr := shift-expr [ cmp-op shift-expr ] .
+
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getAndExpr() {
+    // and-op   := 'AND' | 'NAND' .
+    // and-expr := cmp-expr { and-op cmp-expr } .
+
+
+    // TBD
+    return 0;
+}
+
+ExprList* Interpreter::getOrExpr() {
+    // or-op   := 'OR' | 'XOR' | 'NOR' | 'XNOR' .
+    // or-expr := and-expr { log-op and-expr } .
 
     // TBD
     return 0;
 }
 
 ExprList* Interpreter::getNumExpr() {
-    // TBD
-    return 0;
+    // num-expr := or-expr .
+    return getOrExpr();
 }
 
 ExprList* Interpreter::getStrExpr() {

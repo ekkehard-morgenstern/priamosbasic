@@ -36,13 +36,13 @@ const char* Detokenizer::detokenize() {
         if ( !buf.writeByte(UINT8_C(32)) ) return 0;
 
         switch ( tok ) {
-            uint32_t lineNo; char tmp[100]; int n;
-            const uint8_t* text; uint8_t len; double val;
-            const char* text2;
+            uint32_t lineNo; const uint8_t* text; uint8_t len; double val;
+            const char* text2; int64_t ival; uint8_t* text3; size_t len3;
             case T_LINENO:
                 if ( !scan.getLineNo( lineNo ) ) return 0;
-                n = snprintf( tmp, sizeof(tmp), "%" PRIu32, lineNo );
-                if ( !buf.writeBlock( tmp, n ) ) return 0;
+                format( text3, len3, "%" PRIu32, lineNo );
+                if ( !buf.writeBlock( text3, len3 ) ) return 0;
+                delete [] text3;
                 break;
             case T_IDENT: 
                 if ( !scan.getText( text, len ) ) return 0;
@@ -60,9 +60,15 @@ const char* Detokenizer::detokenize() {
                 if ( !buf.writeByte(UINT8_C(58)) ) return 0;
                 break;
             case T_NUMLIT: case T_SBI:
-                if ( !scan.getNumber( val ) ) return 0;
-                n = snprintf( tmp, sizeof(tmp), "%g", val );
-                if ( !buf.writeBlock( tmp, n ) ) return 0;
+                if ( scan.isInt() ) {
+                    if ( !scan.getInt( ival ) ) return 0;
+                    format( text3, len3, "%" PRId64, ival );
+                } else {
+                    if ( !scan.getReal( val ) ) return 0;
+                    format( text3, len3, "%g", val );
+                }
+                if ( !buf.writeBlock( text3, len3 ) ) return 0;
+                delete [] text3;
                 break;
             case T_REM:
                 text2 = Keywords::getInstance().lookup( tok );

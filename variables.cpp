@@ -122,19 +122,30 @@ void RealVal::setStrVal( const uint8_t* ptr, size_t len ) {
 }
 
 StrVal::StrVal() : ValDesc(VT_STR) {
-    text = new uint8_t [0];
-    len  = 0;
+    text  = new uint8_t [0];
+    len   = 0;
+    bFree = true;
 }
 
-StrVal::StrVal( const uint8_t* text_, size_t len_ ) 
+StrVal::StrVal( const uint8_t* text_, size_t len_, bool bFree_ ) 
     : ValDesc(VT_STR) {
-    text = new uint8_t [ len_ ];
-    len  = len_;
-    if ( len ) memcpy( text, text_, len );
+    if ( bFree_ ) {
+        text = new uint8_t [ len_ ];
+        len  = len_;
+        if ( len ) memcpy( text, text_, len );
+    } else {
+        text = (uint8_t*) text_;
+        len  = len_;
+    }
+    bFree = bFree_;
 }
     
 StrVal::~StrVal() {
-    delete [] text; text = 0; len = 0;
+    if ( text ) {
+        if ( bFree ) delete [] text;
+        text = 0;    
+    }
+    len = 0; bFree = false;
 }
 
 int64_t StrVal::getIntVal() const { 
@@ -144,8 +155,10 @@ int64_t StrVal::getIntVal() const {
 }
 
 void StrVal::setIntVal( int64_t val ) {
-    delete [] text;
+    if ( bFree && text ) delete [] text;
+    text = 0; len = 0;
     format( text, len, "%" PRId64, val );
+    bFree = true;
 }
 
 double StrVal::getRealVal() const { 
@@ -155,19 +168,27 @@ double StrVal::getRealVal() const {
 }
 
 void StrVal::setRealVal( double val ) {
-    delete [] text;
+    if ( bFree && text ) delete [] text;
+    text = 0; len = 0;
     format( text, len, "%g", val );
+    bFree = true;
 }
 
 void StrVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
     rPtr = text; rLen = len; rFree = false;
 }
 
-void StrVal::setStrVal( const uint8_t* ptr, size_t len_ ) {
-    delete [] text;
-    text = new uint8_t [ len_ ];
-    if ( len_ ) memcpy( text, ptr, len_ );
-    len  = len_;
+void StrVal::setStrVal( const uint8_t* ptr, size_t len_, bool bFree_ ) {
+    if ( text && bFree ) delete [] text;
+    if ( bFree_ ) {
+        text = new uint8_t [ len_ ];
+        if ( len_ ) memcpy( text, ptr, len_ );
+        len  = len_;
+    } else {
+        text = (uint8_t*) ptr;
+        len  = len_;
+    }
+    bFree = bFree_;
 }
 
 void AryVal::init() {
