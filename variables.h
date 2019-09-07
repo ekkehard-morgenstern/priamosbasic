@@ -128,6 +128,8 @@ struct StrVal : public ValDesc {
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
     virtual void setStrVal( const uint8_t* ptr, size_t len_, bool bFree_ );
+
+    virtual void alu( uint16_t op, ValDesc* arg );
 };
 
 struct AryVal : public ValDesc {

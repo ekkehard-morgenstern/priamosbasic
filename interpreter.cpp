@@ -23,9 +23,13 @@
 #include "interpreter.h"
 #include "keywords.h"
 
+// --- CmdHashEnt --------------------------------------------------------------------
+
 CmdHashEnt::CmdHashEnt( uint16_t& tok_, CmdMethodPtr mth_ )
     :   HashEntry( (const uint8_t*)(&tok_), 2U ), mth(mth_) {}
 CmdHashEnt::~CmdHashEnt() {}
+
+// --- IdentInfo ---------------------------------------------------------------------
 
 IdentInfo::IdentInfo() : name(0), nLen(0), desc(0), flags(0), param(0) {}
 
@@ -33,6 +37,8 @@ IdentInfo::~IdentInfo() {
     name = 0; nLen = 0; desc = 0; flags = 0;
     if ( param ) { delete param; param = 0; }
 }
+
+// --- ExprInfo ----------------------------------------------------------------------
 
 ExprInfo::ExprInfo( ValDesc* value_, bool bFree_ ) : next(0), value(value_),
     bFree(bFree_) {}
@@ -62,6 +68,17 @@ void ExprInfo::demoteRealToInt() {
         value = newVal;
     }
 }
+
+void ExprInfo::changeStrToInt() {
+    if ( value->type == VT_STR ) {
+        ValDesc* newVal = new IntVal();
+        newVal->setIntVal( value->getIntVal() );
+        delete value; 
+        value = newVal;
+    }
+}
+
+// --- ExprList ----------------------------------------------------------------------
 
 ExprList::ExprList() : first(0), last(0) {}
 
@@ -97,6 +114,8 @@ void ExprList::addFirst( ExprInfo* expr ) {
         first      = expr;
     }
 }
+
+// --- Interpreter -------------------------------------------------------------------
 
 const CmdDecl Interpreter::cmdDeclTable[] = {
     { KW_LIST, &Interpreter::list },
@@ -506,6 +525,7 @@ ExprList* Interpreter::getMultExpr() {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoPromote( el->first, el2->first );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -533,6 +553,7 @@ ExprList* Interpreter::getPowExpr() {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoPromote( el->first, el2->first, true );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -561,6 +582,7 @@ ExprList* Interpreter::getAddExpr() {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoPromote( el->first, el2->first );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -589,6 +611,7 @@ ExprList* Interpreter::getShiftExpr() {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoDemote( el->first, el2->first );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -618,6 +641,7 @@ ExprList* Interpreter::getCmpExpr() {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoPromote( el->first, el2->first );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -628,10 +652,93 @@ ExprList* Interpreter::getCmpExpr() {
     return el;
 }
 
+ExprList* Interpreter::getNumExpr() {
+    // num-expr := cmp-expr .
+    return getCmpExpr();
+}
+
+void Interpreter::verifySingleString( ExprList* el ) {
+    if ( el->first == 0 || el->first != el->last ) {
+        throw Exception( "syntax error: single string expected" );
+    }
+    ValDesc* val = el->first->value;
+    if ( val->type != VT_STR ) {
+        throw Exception( "syntax error: string expected" );
+    }
+}
+
+ExprList* Interpreter::getConcatExpr() {
+    // concat-op   := '+' .
+    // concat-expr := str-base-expr { concat-op str-base-expr } .
+    ExprList* el = getStrBaseExpr();
+    if ( el == 0 ) return 0;
+
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_PLUS ) break;
+        verifySingleString( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getStrBaseExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        verifySingleString( el2 );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
+
+    return el;
+}
+
+ExprList* Interpreter::getStrCmpExpr() {
+    // str-cmp-expr := concat-expr [ cmp-op concat-expr ] .
+    ExprList* el = getConcatExpr();
+    if ( el == 0 ) return 0;
+
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_EQ && tok != T_NE && tok != T_LT && tok != T_GT && 
+            tok != T_LE && tok != T_GE ) break;
+        verifySingleString( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getStrBaseExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        verifySingleString( el2 );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+        el->first->changeStrToInt();
+        break;
+    }
+
+    return el;
+}
+
+ExprList* Interpreter::getStrExpr() {
+    // str-expr := str-cmp-expr .
+    return getStrCmpExpr();
+}
+
+ExprList* Interpreter::getBaseExpr() {
+    // base-expr := num-expr | str-expr .
+    ExprList* el = getNumExpr();
+    if ( el ) return el;
+    return getStrExpr();
+}
+
 ExprList* Interpreter::getAndExpr() {
     // and-op   := 'AND' | 'NAND' .
-    // and-expr := cmp-expr { and-op cmp-expr } .
-    ExprList* el = getCmpExpr();
+    // and-expr := base-expr { and-op base-expr } .
+    ExprList* el = getBaseExpr();
     if ( el == 0 ) return 0;
 
     for (;;) {
@@ -642,11 +749,12 @@ ExprList* Interpreter::getAndExpr() {
             delete el; 
             throw Exception( "interpret error: bad token");
         }
-        ExprList* el2 = getCmpExpr();
+        ExprList* el2 = getBaseExpr();
         if ( el2 == 0 ) {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoDemote( el->first, el2->first );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -674,6 +782,7 @@ ExprList* Interpreter::getOrExpr() {
             delete el;
             throw Exception( "syntax error: expression expected" );
         }
+        verifySingleNumber( el2 );
         autoDemote( el->first, el2->first );
         el->first->value->alu( tok, el2->first->value );
         delete el2;
@@ -682,24 +791,13 @@ ExprList* Interpreter::getOrExpr() {
     return el;
 }
 
-ExprList* Interpreter::getNumExpr() {
-    // num-expr := or-expr .
+ExprList* Interpreter::getExpr() {
+    // expr := or-expr .
     return getOrExpr();
 }
 
-ExprList* Interpreter::getStrExpr() {
-    // TBD
-    // TODO: string comparisons?!?!?!
-    return 0;
-}
-
-ExprList* Interpreter::getExpr() {
-    ExprList* el = getNumExpr();
-    if ( el ) return el;
-    return getStrExpr();
-}
-
 ExprList* Interpreter::getExprList() {
+    // expr-list := expr { ',' expr } .
 
     ExprList* el = getExpr();
     if ( el == 0 ) return 0;

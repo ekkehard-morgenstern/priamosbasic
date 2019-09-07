@@ -321,6 +321,63 @@ void StrVal::setStrVal( const uint8_t* ptr, size_t len_, bool bFree_ ) {
     bFree = bFree_;
 }
 
+void StrVal::alu( uint16_t op, ValDesc* arg ) {
+    uint8_t* text2 = 0; size_t len2 = 0; bool bFree2 = false;
+    arg->getStrVal( text2, len2, bFree2 );
+    if ( op == T_PLUS ) { // concat
+        uint8_t* text3 = new uint8_t [ len + len2 ];
+        if ( len  ) memcpy( text3      , text , len  );
+        if ( len2 ) memcpy( text3 + len, text2, len2 );
+        size_t len3 = len + len2;
+        if ( bFree2 ) delete [] text2;
+        if ( bFree  ) delete [] text;
+        text  = text3;
+        len   = len3;
+        bFree = true;
+        return;
+    }
+    if ( op != T_EQ && op != T_NE && op != T_LT && op != T_GT &&
+        op != T_LE && op != T_GE ) {
+        if ( bFree2 ) delete [] text2;
+        return;
+    }
+    // comparison
+    bool   result = false;
+    int    cmpRes = 0;
+    size_t nComp  = len < len2 ? len : len2;
+    if ( nComp ) {
+        cmpRes = memcmp( text, text2, nComp );
+    }
+    if ( bFree2 ) delete [] text2;
+    if ( cmpRes == 0 ) {
+        if      ( len < len2 ) cmpRes = -1;
+        else if ( len > len2 ) cmpRes =  1;
+    }
+    switch ( op ) {
+        case T_EQ:
+            result = ( cmpRes == 0 );
+            break;
+        case T_NE:
+            result = ( cmpRes != 0 );
+            break;
+        case T_LT:
+            result = ( cmpRes < 0 );
+            break;
+        case T_GT:
+            result = ( cmpRes > 0 );
+            break;
+        case T_LE:
+            result = ( cmpRes <= 0 );
+            break;
+        case T_GE:
+            result = ( cmpRes >= 0 );
+            break;
+        default:    
+            break;
+    }
+    setIntVal( result ? -1 : 0 );
+}
+
 // --- AryVal ------------------------------------------------------------------------
 
 void AryVal::init() {

@@ -114,6 +114,7 @@ struct ExprInfo : public NonCopyable {
 
     void promoteIntToReal();
     void demoteRealToInt();
+    void changeStrToInt();
 };
 
 struct ExprList : public NonCopyable {
@@ -177,38 +178,33 @@ class Interpreter : public NonCopyable {
         shift-expr    := add-expr [ shift-op add-expr ] .
         cmp-op        := '<' | '>' | '<=' | '>=' | '=' | '<>' .
         cmp-expr      := shift-expr [ cmp-op shift-expr ] .
-        and-op        := 'AND' | 'NAND' .
-        and-expr      := cmp-expr { and-op cmp-expr } .
-        or-op         := 'OR' | 'XOR' | 'NOR' | 'XNOR' .
-        or-expr       := and-expr { log-op and-expr } .
-        num-expr      := or-expr .
+        num-expr      := cmp-expr .
 
         -- string expressions
 
         str-base-expr := str-ident-expr | str-const .
         concat-op     := '+' .
         concat-expr   := str-base-expr { concat-op str-base-expr } .
-        str-expr      := concat-expr .
+        str-expr      := str-cmp-expr .
+
+        -- general expressions
+
+        base-expr     := num-expr | str-expr .
+        and-op        := 'AND' | 'NAND' .
+        and-expr      := cmp-expr { and-op cmp-expr } .
+        or-op         := 'OR' | 'XOR' | 'NOR' | 'XNOR' .
+        or-expr       := and-expr { log-op and-expr } .
+        expr          := or-expr .
+        expr-list     := expr { ',' expr } .
 
         -- assignments
         -- LEFT$(), MID$(), RIGHT$() etc. have a special status as they can
         -- be used on the left side of assignments. Is automatically handled
         -- by the syntax here by the definition of str-ident-expr.
 
-        num-left-side  := num-ident-expr .
-        num-right-side := num-expr .
-        num-assignment := num-left-side '=' num-right-side .
-        
-        str-left-side  := str-ident-expr .
-        str-right-side := str-expr .
-        str-assignment := str-left-side '=' str-right-side .
-
-        assignment     := [ 'LET' ] ( num-assignment | str-assignment ) .
-
-        -- general expressions
-
-        expr          := num-expr | str-expr .
-        expr-list     := expr { ',' expr } .
+        assign-lvalue  := num-ident-expr | str-ident-expr .
+        lvalue-list    := assign-lvalue { ',' assign-lvalue } .
+        assignment     := [ 'LET' ] lvalue-list '=' expr-list .
 
         TODO: perhaps move this to an extra file, 'expressions.ebnf' or so.
     */
@@ -292,17 +288,29 @@ class Interpreter : public NonCopyable {
     ExprList* getCmpExpr();
         // gets a comparison expression (incl. evaluation)
 
+    ExprList* getNumExpr();
+        // gets a numeric expression with a transient ValDesc
+
+    static void verifySingleString( ExprList* el );
+        // verifies that an expression is a single string.
+
+    ExprList* getConcatExpr();
+        // gets a string concat expression
+
+    ExprList* getStrCmpExpr();
+        // gets a string comparison expression
+
+    ExprList* getStrExpr();
+        // gets a string expression with a transient ValDesc
+
+    ExprList* getBaseExpr();
+        // gets a numeric or string expression
+    
     ExprList* getAndExpr();
         // gets an AND expression (incl. evaluation)
 
     ExprList* getOrExpr();
         // gets an OR expression (incl. evaluation)
-
-    ExprList* getNumExpr();
-        // gets a numeric expression with a transient ValDesc
-
-    ExprList* getStrExpr();
-        // gets a string expression with a transient ValDesc
 
     ExprList* getExpr();
         // gets any expression with a transient ValDesc
