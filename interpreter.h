@@ -111,6 +111,9 @@ struct ExprInfo : public NonCopyable {
     ~ExprInfo();
 
     inline ValDesc* detachValue() { ValDesc* ret = value; value = 0; return ret; }
+
+    void promoteIntToReal();
+    void demoteRealToInt();
 };
 
 struct ExprList : public NonCopyable {
@@ -259,11 +262,20 @@ class Interpreter : public NonCopyable {
     ExprList* getStrBaseExpr();
         // gets a string base expression (incl. evaluation)
 
+    static void verifySingleNumber( ExprList* el );
+        // assures that ExprList contains only a single, numeric value
+
     ExprList* getSignedExpr();
         // gets a numeric signed expression (incl. evaluation)
 
     ExprList* getNotExpr();
         // gets a numeric NOT expression (incl. evaluation)
+
+    static void autoPromote( ExprInfo* ei1, ExprInfo* ei2, bool harder = false );
+        // promote from VT_INT to VT_REAL if necessary
+
+    static void autoDemote( ExprInfo* ei1, ExprInfo* ei2 );
+        // demote from VT_REAL to VT_INT if necessary
 
     ExprList* getMultExpr();
         // gets a numeric multiplication expression (incl. evaluation)

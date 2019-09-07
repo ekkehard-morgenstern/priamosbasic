@@ -45,6 +45,24 @@ ExprInfo::~ExprInfo() {
     }
 }
 
+void ExprInfo::promoteIntToReal() {
+    if ( value->type == VT_INT ) {
+        ValDesc* newVal = new RealVal();
+        newVal->setIntVal( value->getIntVal() );
+        delete value; 
+        value = newVal;
+    }
+}
+
+void ExprInfo::demoteRealToInt() {
+    if ( value->type == VT_REAL ) {
+        ValDesc* newVal = new IntVal();
+        newVal->setIntVal( value->getIntVal() );
+        delete value; 
+        value = newVal;
+    }
+}
+
 ExprList::ExprList() : first(0), last(0) {}
 
 ExprList::~ExprList() {
@@ -410,80 +428,258 @@ ExprList* Interpreter::getStrBaseExpr() {
     return 0;
 }
 
+void Interpreter::verifySingleNumber( ExprList* el ) {
+    if ( el->first == 0 || el->first != el->last ) {
+        throw Exception( "syntax error: single value expected" );
+    }
+    ValDesc* val = el->first->value;
+    if ( val->type != VT_INT && val->type != VT_REAL ) {
+        throw Exception( "syntax error: number expected" );
+    }
+}
+
 ExprList* Interpreter::getSignedExpr() {
     // sign-op     := '-' | '+' .
     // signed-expr := [ sign-op ] num-base-expr .
-
-    // TBD
-    return 0;
+    uint16_t tok = scan.tokType();
+    if ( tok != T_MINUS && tok != T_PLUS ) tok = T_EOL; else skipTok();
+    ExprList* el = getNumBaseExpr();
+    if ( tok == T_EOL ) return el;
+    if ( el == 0 ) throw Exception( "syntax error: expression expected" );
+    verifySingleNumber( el );
+    if ( tok == T_PLUS ) return el;
+    el->first->value->alu( tok );
+    return el;
 }
 
 ExprList* Interpreter::getNotExpr() {
     // not-op   := 'NOT' .
     // not-expr := [ not-op ] signed-expr .
+    uint16_t tok = scan.tokType();
+    if ( tok != KW_NOT ) tok = T_EOL; else skipTok();
+    ExprList* el = getSignedExpr();
+    if ( tok == T_EOL ) return el;
+    if ( el == 0 ) throw Exception( "syntax error: expression expected" );
+    verifySingleNumber( el );
+    if ( el->first->value->type == VT_REAL ) el->first->demoteRealToInt();
+    el->first->value->alu( tok );
+    return el;
+}
 
-    // TBD
-    return 0;
+void Interpreter::autoPromote( ExprInfo* ei1, ExprInfo* ei2, bool harder ) {
+    if ( harder ) {
+        if ( ei1->value->type == VT_INT ) ei1->promoteIntToReal();
+        if ( ei2->value->type == VT_INT ) ei2->promoteIntToReal();
+        return;
+    } 
+    if ( ei1->value->type == VT_INT && ei2->value->type == VT_REAL ) {
+        if ( ei1->value->type == VT_INT ) ei1->promoteIntToReal();
+        return;
+    }
+    if ( ei1->value->type == VT_REAL && ei2->value->type == VT_INT ) {
+        if ( ei2->value->type == VT_INT ) ei2->promoteIntToReal();
+        return;
+    }
+}
+
+void Interpreter::autoDemote( ExprInfo* ei1, ExprInfo* ei2 ) {
+    if ( ei1->value->type == VT_REAL ) ei1->demoteRealToInt();
+    if ( ei2->value->type == VT_REAL ) ei2->demoteRealToInt();
 }
 
 ExprList* Interpreter::getMultExpr() {
     // mult-op   := '*' | '/' .
     // mult-expr := not-expr { mult-op not-expr } .
+    ExprList* el = getNotExpr();
+    if ( el == 0 ) return 0;
 
-    // TBD
-    return 0;
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_TIMES && tok != T_DIV ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getNotExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoPromote( el->first, el2->first );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
+
+    return el;
 }
 
 ExprList* Interpreter::getPowExpr() {
     // pow-op   := '**' | '^' .
     // pow-expr := mult-expr { pow-op mult-expr } .
+    ExprList* el = getMultExpr();
+    if ( el == 0 ) return 0;
 
-    // TBD
-    return 0;
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_POW ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getMultExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoPromote( el->first, el2->first, true );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
+
+    return el;
 }
 
 ExprList* Interpreter::getAddExpr() {
     // add-op   := '-' | '+' .
     // add-expr := pow-expr { add-op pow-expr } .
 
+    ExprList* el = getPowExpr();
+    if ( el == 0 ) return 0;
 
-    // TBD
-    return 0;
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_MINUS && tok != T_PLUS ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getPowExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoPromote( el->first, el2->first );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
+
+    return el;
 }
 
 ExprList* Interpreter::getShiftExpr() {
     // shift-op   := 'SHL' | 'SHR' .
     // shift-expr := add-expr [ shift-op add-expr ] .
 
+    ExprList* el = getAddExpr();
+    if ( el == 0 ) return 0;
 
-    // TBD
-    return 0;
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != KW_SHL && tok != KW_SHR ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getAddExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoDemote( el->first, el2->first );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
+
+    return el;
 }
 
 ExprList* Interpreter::getCmpExpr() {
     // cmp-op   := '<' | '>' | '<=' | '>=' | '=' | '<>' .
     // cmp-expr := shift-expr [ cmp-op shift-expr ] .
 
+    ExprList* el = getShiftExpr();
+    if ( el == 0 ) return 0;
 
-    // TBD
-    return 0;
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_EQ && tok != T_NE && tok != T_LT && tok != T_GT &&
+            tok != T_GE && tok != T_LE ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getShiftExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoPromote( el->first, el2->first );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+        if ( el->first->value->type == VT_REAL ) el->first->demoteRealToInt();
+        break;
+    }
+
+    return el;
 }
 
 ExprList* Interpreter::getAndExpr() {
     // and-op   := 'AND' | 'NAND' .
     // and-expr := cmp-expr { and-op cmp-expr } .
+    ExprList* el = getCmpExpr();
+    if ( el == 0 ) return 0;
 
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != KW_AND && tok != KW_NAND ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getCmpExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoDemote( el->first, el2->first );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
 
-    // TBD
-    return 0;
+    return el;
 }
 
 ExprList* Interpreter::getOrExpr() {
     // or-op   := 'OR' | 'XOR' | 'NOR' | 'XNOR' .
     // or-expr := and-expr { log-op and-expr } .
+    ExprList* el = getAndExpr();
+    if ( el == 0 ) return 0;
 
-    // TBD
-    return 0;
+    for (;;) {
+        uint16_t tok = scan.tokType();
+        if ( tok != KW_OR && tok != KW_NOR && tok != KW_XOR && tok != KW_XNOR ) break;
+        verifySingleNumber( el );
+        if ( !scan.skipTok() ) { 
+            delete el; 
+            throw Exception( "interpret error: bad token");
+        }
+        ExprList* el2 = getAndExpr();
+        if ( el2 == 0 ) {
+            delete el;
+            throw Exception( "syntax error: expression expected" );
+        }
+        autoDemote( el->first, el2->first );
+        el->first->value->alu( tok, el2->first->value );
+        delete el2;
+    }
+
+    return el;
 }
 
 ExprList* Interpreter::getNumExpr() {
@@ -493,6 +689,7 @@ ExprList* Interpreter::getNumExpr() {
 
 ExprList* Interpreter::getStrExpr() {
     // TBD
+    // TODO: string comparisons?!?!?!
     return 0;
 }
 

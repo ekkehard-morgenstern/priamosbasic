@@ -24,6 +24,7 @@
 #include "exception.h"
 #include "tokenizer.h"
 
+// --- ValDesc ------------------------------------------------------------------------
 
 ValDesc::ValDesc( ValueType type_ ) : type(type_) {}
 ValDesc::~ValDesc() {}
@@ -50,6 +51,11 @@ void ValDesc::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
 }
 
 void ValDesc::setStrVal( const uint8_t* ptr, size_t len ) {}
+
+void ValDesc::alu( uint16_t op ) {}
+void ValDesc::alu( uint16_t op, ValDesc* arg ) {}
+
+// --- IntVal -------------------------------------------------------------------------
 
 IntVal::IntVal() : ValDesc(VT_INT), value(0) {}
 IntVal::~IntVal() { value = 0; }
@@ -86,6 +92,79 @@ void IntVal::setStrVal( const uint8_t* ptr, size_t len ) {
     }
 }
 
+void IntVal::alu( uint16_t op ) {
+    switch ( op ) {
+        case T_MINUS:   value = -value; break;
+        case KW_NOT:    value = ~value; break;
+        default:        break;
+    }
+}
+
+void IntVal::alu( uint16_t op, ValDesc* arg ) {
+    int64_t value2 = arg->getIntVal();
+    switch ( op ) {
+        case T_TIMES:
+            value *= value2;
+            break;
+        case T_DIV:
+            if ( value2 == 0 ) throw Exception( "division by zero" );
+            value /= value2;
+            break;
+        case T_PLUS:
+            value += value2;
+            break;
+        case T_MINUS:
+            value -= value2;
+            break;
+        case KW_SHL:
+            value <<= value2;
+            break;
+        case KW_SHR:
+            value >>= value2;
+            break;
+        case T_EQ:
+            value = ( value == value2 ? -1 : 0 );
+            break;
+        case T_NE:
+            value = ( value != value2 ? -1 : 0 );
+            break;
+        case T_LT:
+            value = ( value < value2 ? -1 : 0 );
+            break;
+        case T_GT:
+            value = ( value > value2 ? -1 : 0 );
+            break;
+        case T_LE:
+            value = ( value <= value2 ? -1 : 0 );
+            break;
+        case T_GE:
+            value = ( value >= value2 ? -1 : 0 );
+            break;
+        case KW_AND:
+            value &= value2;
+            break;
+        case KW_NAND:
+            value = ~( value & value2 );
+            break;
+        case KW_OR:
+            value |= value2;
+            break;
+        case KW_NOR:
+            value = ~( value | value2 );
+            break;
+        case KW_XOR:
+            value ^= value2;
+            break;
+        case KW_XNOR:
+            value = ~( value ^ value2 );
+            break;
+        default:    
+            break;
+    }
+}
+
+// --- RealVal -----------------------------------------------------------------------
+
 RealVal::RealVal() : ValDesc(VT_REAL), value(0) {}
 RealVal::~RealVal() { value = 0; }
 
@@ -120,6 +199,57 @@ void RealVal::setStrVal( const uint8_t* ptr, size_t len ) {
         value = 0;
     }
 }
+
+void RealVal::alu( uint16_t op ) {
+    switch ( op ) {
+        case T_MINUS:   value = -value; break;
+        default:        break;
+    }
+}
+
+void RealVal::alu( uint16_t op, ValDesc* arg ) {
+    double value2 = arg->getRealVal();
+    switch ( op ) {
+        case T_TIMES:
+            value *= value2;
+            break;
+        case T_DIV:
+            if ( value2 == 0 ) throw Exception( "division by zero" );
+            value /= value2;
+            break;
+        case T_POW:
+            value = pow( value, value2 );
+            break;
+        case T_PLUS:
+            value += value2;
+            break;
+        case T_MINUS:
+            value -= value2;
+            break;
+        case T_EQ:
+            value = ( value == value2 ? -1 : 0 );
+            break;
+        case T_NE:
+            value = ( value != value2 ? -1 : 0 );
+            break;
+        case T_LT:
+            value = ( value < value2 ? -1 : 0 );
+            break;
+        case T_GT:
+            value = ( value > value2 ? -1 : 0 );
+            break;
+        case T_LE:
+            value = ( value <= value2 ? -1 : 0 );
+            break;
+        case T_GE:
+            value = ( value >= value2 ? -1 : 0 );
+            break;
+        default:    
+            break;
+    }
+}
+
+// --- StrVal ------------------------------------------------------------------------
 
 StrVal::StrVal() : ValDesc(VT_STR) {
     text  = new uint8_t [0];
@@ -190,6 +320,8 @@ void StrVal::setStrVal( const uint8_t* ptr, size_t len_, bool bFree_ ) {
     }
     bFree = bFree_;
 }
+
+// --- AryVal ------------------------------------------------------------------------
 
 void AryVal::init() {
     if ( elemType == VT_ARY || elemType == VT_FUNC ) {
@@ -264,6 +396,8 @@ AryVal::~AryVal() {
     elemType = VT_UNDEF;
 }
 
+// --- FuncArg ------------------------------------------------------------------------
+
 FuncArg::FuncArg() {
     pArgs = new ValDesc* [ 5 ];
     fArgs = new bool     [ 5 ];
@@ -323,6 +457,8 @@ void FuncArg::addRes( ValDesc* res, bool fFree ) {
     ++nRes;
 }
 
+// --- FuncVal ------------------------------------------------------------------------
+
 FuncVal::FuncVal( va_list ap ) : ValDesc(VT_FUNC) {
     type     = (FuncType) va_arg( ap, int );
     nForm    = (uint8_t ) va_arg( ap, int );
@@ -349,6 +485,8 @@ void FuncVal::call() {
     pFunc( pFuncArg );
 }
 
+// --- VarDesc -----------------------------------------------------------------------
+
 
 VarDesc::VarDesc( const uint8_t* name, size_t nameLen,
     ValDesc* valueDesc_ ) : HashEntry( name, nameLen ),
@@ -357,6 +495,8 @@ VarDesc::VarDesc( const uint8_t* name, size_t nameLen,
 VarDesc::~VarDesc() { 
     if ( valueDesc ) { delete valueDesc; valueDesc = 0; }
 }
+
+// --- Variables --------------------------------------------------------------------
 
 Variables::Variables() {}
 Variables::~Variables() {}
