@@ -105,6 +105,7 @@ struct IdentInfo : public NonCopyable {
 
 struct ExprInfo : public NonCopyable {
     ExprInfo*       next;
+    ExprList*       param;  // arguments
     ValDesc*        value;  // transient -- might be discarded
     bool            bFree;  // whether to discard value after use
     ExprInfo( ValDesc* value_, bool bFree_ );
@@ -125,6 +126,7 @@ struct ExprList : public NonCopyable {
     void add( ExprInfo* expr );
     void moveFrom( ExprList* exprList );
     void addFirst( ExprInfo* expr );
+    size_t count() const;
 };
 
 class Interpreter : public NonCopyable {
@@ -317,6 +319,15 @@ class Interpreter : public NonCopyable {
 
     ExprList* getExprList();
         // gets any expression list
+
+    ExprList* getAssignLvalue();
+        // gets an lvalue for assignment
+
+    ExprList* getLvalueList();
+        // gets a list of lvalues for assignment
+
+    bool      getAssignment( ExprList*& lvalues, ExprList*& rvalues );
+        // get lvalues and rvalues for assignment
 
     bool getLineNo( uint32_t& rLineNo );
     bool getLineNoExpr( uint32_t& lineNo1, uint32_t& lineNo2 );

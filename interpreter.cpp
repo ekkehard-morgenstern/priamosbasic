@@ -40,15 +40,16 @@ IdentInfo::~IdentInfo() {
 
 // --- ExprInfo ----------------------------------------------------------------------
 
-ExprInfo::ExprInfo( ValDesc* value_, bool bFree_ ) : next(0), value(value_),
+ExprInfo::ExprInfo( ValDesc* value_, bool bFree_ ) : next(0), param(0), value(value_),
     bFree(bFree_) {}
 
 ExprInfo::~ExprInfo() {
-    if ( next  ) { delete next ; next = 0; }
+    if ( next ) { delete next ; next = 0; }
     if ( value ) { 
         if ( bFree ) delete value; 
         value = 0; 
     }
+    if ( param ) { delete param; param = 0; }
 }
 
 void ExprInfo::promoteIntToReal() {
@@ -113,6 +114,12 @@ void ExprList::addFirst( ExprInfo* expr ) {
         expr->next = first;
         first      = expr;
     }
+}
+
+size_t ExprList::count() const {
+    ExprInfo* ei = first; size_t cnt = 0;
+    while ( ei ) { ei = ei->next; ++cnt; }
+    return cnt;
 }
 
 // --- Interpreter -------------------------------------------------------------------
@@ -245,7 +252,7 @@ bool Interpreter::getNumIdent( IdentInfo& ii ) {
     if ( !getIdentInfo( ii ) ) return false;
     if ( ii.flags & IIF_STR  ) return false;
 
-    getIdentAuto( ii, VT_INT );
+    getIdentAuto( ii, ii.flags & IIF_INT ? VT_INT : VT_REAL );
     return true;
 }
 
@@ -805,7 +812,7 @@ ExprList* Interpreter::getExprList() {
     ExprList* res = new ExprList();
 
     for (;;) {
-        res->moveFrom( el );
+        res->moveFrom( el ); delete el;
 
         uint16_t tok = scan.tokType();
         if ( tok != T_COMMA ) break;
@@ -823,6 +830,71 @@ ExprList* Interpreter::getExprList() {
     }
 
     return res;
+}
+
+ExprList* Interpreter::getAssignLvalue() {
+    // assign-lvalue := num-ident-expr | str-ident-expr .
+    IdentInfo ii;
+    if ( !getNumIdentExpr( ii ) ) {
+        if ( !getStrIdentExpr( ii ) ) return 0;
+    }
+    ExprInfo* ei = new ExprInfo( ii.desc, false );
+    ei->param = ii.param; ii.param = 0;
+    ExprList* el = new ExprList();
+    el->add( ei );
+    return el;
+}
+
+ExprList* Interpreter::getLvalueList() {
+    // lvalue-list := assign-lvalue { ',' assign-lvalue } .
+    ExprList* el = getAssignLvalue();
+    if ( el == 0 ) return 0;
+
+    ExprList* res = new ExprList();
+
+    for (;;) {
+        res->moveFrom( el ); delete el;
+
+        uint16_t tok = scan.tokType();
+        if ( tok != T_COMMA ) break;
+
+        if ( !scan.skipTok() ) {
+            delete res;
+            throw Exception( "interpret error: bad token" );
+        }
+
+        el = getAssignLvalue();
+        if ( el == 0 ) {
+            delete res;
+            throw Exception( "syntax error: lvalue expected after comma" );
+        }
+    }
+
+    return res;
+}
+
+bool Interpreter::getAssignment( ExprList*& lvalues, ExprList*& rvalues ) {
+    // assignment := [ 'LET' ] lvalue-list '=' expr-list .
+    ExprList* el1 = getLvalueList();
+    if ( el1 == 0 ) return false;
+    uint16_t tok = scan.tokType();
+    if ( tok != T_EQ || !scan.skipTok() ) {
+        delete el1;
+        throw Exception( "syntax error: '=' expected" );
+    }
+    ExprList* el2 = getExprList();
+    if ( el2 == 0 ) {
+        delete el1;
+        throw Exception( "syntax error: expression(s) expected" );
+    }
+    if ( el1->count() != el2->count() ) {
+        delete el2;
+        delete el1;
+        throw Exception( "syntax error: pairing mismatch" );
+    }
+    lvalues = el1;
+    rvalues = el2;
+    return true;
 }
 
 bool Interpreter::getLineNo( uint32_t& rLineNo ) {
