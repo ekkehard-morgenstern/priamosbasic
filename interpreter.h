@@ -326,8 +326,11 @@ class Interpreter : public NonCopyable {
     ExprList* getLvalueList();
         // gets a list of lvalues for assignment
 
-    bool      getAssignment( ExprList*& lvalues, ExprList*& rvalues );
+    bool getAssignment( ExprList*& lvalues, ExprList*& rvalues );
         // get lvalues and rvalues for assignment
+    
+    static void doAssignment( const ExprList* lvalues, const ExprList* rvalues );
+        // executes assignment
 
     bool getLineNo( uint32_t& rLineNo );
     bool getLineNoExpr( uint32_t& lineNo1, uint32_t& lineNo2 );

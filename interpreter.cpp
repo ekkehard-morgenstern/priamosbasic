@@ -366,7 +366,22 @@ ExprList* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
                     verifyFuncRes( fn, args );
                     fillFuncRes( res, args );
                 } else {    // VT_ARY
-                    // TODO: array case
+                    AryVal* av = dynamic_cast<AryVal*>( ii.desc );
+                    if ( av == 0 ) throw Exception( "interpret error: bad array" );
+                    if ( ii.param == 0 ) throw Exception( "bad subscript" );
+                    size_t cnt = ii.param->count();
+                    ArrayType at = av->arrayType;
+                    if ( at == AT_DYNAMIC || at == AT_ASSOC ) {
+                        if ( cnt != 1U ) throw Exception( "too many dimensions" );
+                    } else if ( at == AT_STATIC ) {
+                        if ( cnt < av->ndims ) throw Exception( "too few dimensions" );
+                        if ( cnt > av->ndims ) throw Exception( "too many dimensions" );
+                    }
+                    ValDesc** args = new ValDesc* [ cnt ];
+                    ExprInfo* ei   = ii.param->first;
+                    size_t    pos  = 0;
+                    while ( ei ) { args[pos++] = ei->value; ei = ei->next; }
+                    res->add( new ExprInfo( av->subscript( args ), false ) );
                 }
                 break;
             default:
@@ -896,6 +911,32 @@ bool Interpreter::getAssignment( ExprList*& lvalues, ExprList*& rvalues ) {
     rvalues = el2;
     return true;
 }
+
+void Interpreter::doAssignment( const ExprList* lvalues, const ExprList* rvalues ) {
+    if ( lvalues == 0 || rvalues == 0 ) return;
+    const ExprInfo* ei1 = lvalues->first;
+    const ExprInfo* ei2 = rvalues->first;
+    while ( ei1 && ei2 ) {
+        ValueType vt1 = ei1->value->type;
+        ValueType vt2 = ei2->value->type;
+
+        if ( vt1 == VT_STR ) {
+            if ( vt2 != VT_STR ) throw Exception( "type mismatch" );
+            uint8_t* text = 0; size_t len = 0; bool bFree = false;
+            ei2->value->getStrVal( text, len, bFree );
+            ei1->value->setStrVal( text, len );
+            if ( bFree ) delete [] text;
+        } else if ( vt1 == VT_INT ) {
+
+        } else if ( vt1 == VT_REAL ) {
+
+        }
+
+        ei1 = ei1->next;
+        ei2 = ei2->next;
+    }
+}
+
 
 bool Interpreter::getLineNo( uint32_t& rLineNo ) {
    uint16_t tok = scan.tokType();

@@ -440,8 +440,7 @@ AryVal::AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_,
     init();
 }
 
-AryVal::~AryVal() {
-    if ( ht ) { delete ht; ht = 0; }
+void AryVal::freeCells() {
     while ( totalSize ) {
         --totalSize;
         if ( cells[totalSize] ) { 
@@ -449,8 +448,127 @@ AryVal::~AryVal() {
         }
     }
     delete [] cells; cells = 0; 
+}
+
+AryVal::~AryVal() {
+    if ( ht ) { delete ht; ht = 0; }
+    freeCells();
     delete [] dims; dims = 0; ndims = 0;
     elemType = VT_UNDEF;
+}
+
+ValDesc* AryVal::subscript( ValDesc** args ) {
+    switch ( arrayType ) {
+        default:
+            throw Exception( "internal error: bad array" );
+        case AT_STATIC:
+            {
+                size_t pos = 0;
+                for ( size_t i=0; i < ndims; ++i ) {
+                    ValDesc* val   = args[i];
+                    size_t   mult  = i < ndims-1U ? dims[i] : 0;
+                    if ( val->type != VT_INT && val->type != VT_REAL ) {
+                        throw Exception( "type mismatch dimension #d", (int) i );
+                    }
+                    int64_t d     = val->getIntVal();
+                    if ( d < 0 ) {
+                        throw Exception( "negative array index #%d", (int) i );
+                    }
+                    size_t  index = (size_t) d;
+                    if ( index >= dims[i] ) {
+                        throw Exception( "index #%d out of range", (int) i );
+                    }
+                    pos += mult ? mult * index : index;
+                }
+                if ( pos >= totalSize ) throw Exception( "internal error: bad index" );
+                return cells[pos];
+            }
+            break;
+        case AT_DYNAMIC:
+            {
+                ValDesc* val = args[0];
+                if ( val->type != VT_INT && val->type != VT_REAL ) {
+                    throw Exception( "type mismatch dimension #0" );
+                }
+                int64_t d = val->getIntVal();
+                if ( d < 0 ) {
+                    throw Exception( "negative array index" );
+                }
+                size_t index     = (size_t) d;
+                size_t numFilled = totalSize;
+                if ( index >= dims[0] ) {
+                    // resize cells array
+                    size_t newdim;
+                    if ( dims[0] >= SIZE_MAX / 2U ) {
+                        newdim = SIZE_MAX;
+                    } else {
+                        newdim = dims[0] * 2U; 
+                    }
+                    if ( index >= newdim && index < SIZE_MAX ) {
+                        newdim = index + 1U;
+                    } else if ( index >= newdim ) {
+                        newdim = SIZE_MAX;
+                    }
+                    size_t maxsize = SIZE_MAX / sizeof(ValDesc*);
+                    if ( newdim > maxsize ) throw Exception( "array too large" );
+                    ValDesc** newCells  = new ValDesc* [ newdim ];
+                    if ( numFilled ) {
+                        memcpy( (void*) newCells, (void*) cells, sizeof(ValDesc*)
+                            * numFilled );
+                    }
+                    delete [] cells;
+                    cells   = newCells;
+                    dims[0] = newdim;
+                }
+                if ( index >= numFilled ) { // allocate cell values
+                    while ( numFilled <= index ) {
+                        cells[numFilled++] = ValDesc::create( elemType );
+                    }
+                    totalSize = numFilled;
+                }
+                return cells[index];
+            }
+            break;
+        case AT_ASSOC:
+            {
+                ValDesc* val = args[0];
+                if ( val->type != VT_INT && val->type != VT_REAL && val->type != VT_STR ) {
+                    throw Exception( "type mismatch dimension #0" );
+                }
+                // TBD: keys; hash table lookup
+
+
+                // see if adding a new cell at the end of the array would resize it
+                size_t index = totalSize;
+                if ( index >= dims[0] ) {
+                    // resize cells array
+                    size_t newdim;
+                    if ( dims[0] >= SIZE_MAX / 2U ) {
+                        newdim = SIZE_MAX;
+                    } else {
+                        newdim = dims[0] * 2U; 
+                    }
+                    size_t maxsize = SIZE_MAX / sizeof(ValDesc*);
+                    if ( newdim > maxsize ) throw Exception( "array too large" );
+                    ValDesc** newCells = new ValDesc* [ newdim ];
+                    if ( index ) {
+                        memcpy( (void*) newCells, (void*) cells, sizeof(ValDesc*)
+                            * index );
+                    }
+                    delete [] cells;
+                    cells   = newCells;
+                    dims[0] = newdim;
+                }
+                cells[index] = ValDesc::create( elemType );
+                totalSize = index + 1U;
+                ValDesc* cell = cells[index];
+
+                // return accessed cell
+                return cell;
+            }
+            break;
+    }
+
 }
 
 // --- FuncArg ------------------------------------------------------------------------

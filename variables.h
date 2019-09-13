@@ -147,8 +147,12 @@ struct AryVal : public ValDesc {
         const size_t* dims_ );
     virtual ~AryVal();
 
+    ValDesc* subscript( ValDesc** args );
+        // args must be ndesc deep for AT_STATIC, and 1 deep otherwise
+
 private:
     void init();
+    void freeCells();
 };
 
 struct FuncArg : public NonCopyable {
