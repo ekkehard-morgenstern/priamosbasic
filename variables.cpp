@@ -378,6 +378,13 @@ void StrVal::alu( uint16_t op, ValDesc* arg ) {
     setIntVal( result ? -1 : 0 );
 }
 
+// --- AryHashEnt --------------------------------------------------------------------
+
+AryHashEnt::AryHashEnt( size_t cellIndex_, const uint8_t* name_, size_t nameLen_ )
+    :   HashEntry( name_, nameLen_ ), cellIndex(cellIndex_) {}
+
+AryHashEnt::~AryHashEnt() { cellIndex = SIZE_MAX; }
+
 // --- AryVal ------------------------------------------------------------------------
 
 void AryVal::init() {
@@ -457,118 +464,152 @@ AryVal::~AryVal() {
     elemType = VT_UNDEF;
 }
 
+ValDesc* AryVal::subscriptStatic( ValDesc** args ) {
+    size_t pos = 0;
+    for ( size_t i=0; i < ndims; ++i ) {
+        ValDesc* val   = args[i];
+        size_t   mult  = i < ndims-1U ? dims[i] : 0;
+        if ( val->type != VT_INT && val->type != VT_REAL ) {
+            throw Exception( "type mismatch dimension #d", (int) i );
+        }
+        int64_t d     = val->getIntVal();
+        if ( d < 0 ) {
+            throw Exception( "negative array index #%d", (int) i );
+        }
+        size_t  index = (size_t) d;
+        if ( index >= dims[i] ) {
+            throw Exception( "index #%d out of range", (int) i );
+        }
+        pos += mult ? mult * index : index;
+    }
+    if ( pos >= totalSize ) throw Exception( "internal error: bad index" );
+    return cells[pos];
+}
+
+ValDesc* AryVal::subscriptDynamic( ValDesc** args ) {
+    ValDesc* val = args[0];
+    if ( val->type != VT_INT && val->type != VT_REAL ) {
+        throw Exception( "type mismatch dimension #0" );
+    }
+    int64_t d = val->getIntVal();
+    if ( d < 0 ) {
+        throw Exception( "negative array index" );
+    }
+    size_t index     = (size_t) d;
+    size_t numFilled = totalSize;
+    if ( index >= dims[0] ) {
+        // resize cells array
+        size_t newdim;
+        if ( dims[0] >= SIZE_MAX / 2U ) {
+            newdim = SIZE_MAX;
+        } else {
+            newdim = dims[0] * 2U; 
+        }
+        if ( index >= newdim && index < SIZE_MAX ) {
+            newdim = index + 1U;
+        } else if ( index >= newdim ) {
+            newdim = SIZE_MAX;
+        }
+        size_t maxsize = SIZE_MAX / sizeof(ValDesc*);
+        if ( newdim > maxsize ) throw Exception( "array too large" );
+        ValDesc** newCells;
+        try {
+            newCells = new ValDesc* [ newdim ];
+        } catch ( const std::exception& xcpt ) {
+            throw Exception( "out of memory" );
+        }
+        if ( numFilled ) {
+            memcpy( (void*) newCells, (void*) cells, sizeof(ValDesc*)
+                * numFilled );
+        }
+        delete [] cells;
+        cells   = newCells;
+        dims[0] = newdim;
+    }
+    if ( index >= numFilled ) { // allocate cell values
+        while ( numFilled <= index ) {
+            cells[numFilled++] = ValDesc::create( elemType );
+        }
+        totalSize = numFilled;
+    }
+    return cells[index];
+}
+
+ValDesc* AryVal::subscriptAssoc( ValDesc** args ) {
+    ValDesc* val = args[0]; U_IntReal64 ir; 
+    uint8_t* key = 0; size_t keyLen = 0; bool bFree = false;
+    switch ( val->type ) {
+        case VT_INT:
+            ir.ival = val->getIntVal();
+            key     = (uint8_t*)(&ir.ival);
+            keyLen  = sizeof(ir.ival);
+            break;
+        case VT_REAL:
+            ir.rval = val->getRealVal();
+            key     = (uint8_t*)(&ir.rval);
+            keyLen  = sizeof(ir.rval);
+            break;
+        case VT_STR:
+            val->getStrVal( key, keyLen, bFree );
+            break;
+        default:
+            throw Exception( "type mismatch dimension #0" );
+    }
+    HashEntry* hashEnt = ht->find( key, keyLen );
+    if ( hashEnt ) {    // hash entry found
+        AryHashEnt* aryHashEnt = dynamic_cast<AryHashEnt*>( hashEnt );
+        if ( aryHashEnt == 0 ) throw Exception( "bad associative array" );
+        return cells[ aryHashEnt->cellIndex ];
+    }
+    // see if adding a new cell at the end of the array would resize it
+    size_t index = totalSize;
+    if ( index >= dims[0] ) {
+        // resize cells array
+        size_t newdim;
+        if ( dims[0] >= SIZE_MAX / 2U ) {
+            newdim = SIZE_MAX;
+        } else {
+            newdim = dims[0] * 2U; 
+        }
+        size_t maxsize = SIZE_MAX / sizeof(ValDesc*);
+        if ( newdim > maxsize ) {
+            if ( bFree ) delete [] key;
+            throw Exception( "array too large" );
+        }
+        ValDesc** newCells;
+        try {
+            newCells = new ValDesc* [ newdim ];
+        } catch ( const std::exception& xcpt ) {
+            if ( bFree ) delete [] key;
+            throw Exception( "out of memory" );
+        }
+        if ( index ) {
+            memcpy( (void*) newCells, (void*) cells, sizeof(ValDesc*)
+                * index );
+        }
+        delete [] cells;
+        cells   = newCells;
+        dims[0] = newdim;
+    }
+    // create a new cell at the end of the array
+    cells[index] = ValDesc::create( elemType );
+    totalSize = index + 1U;
+    ValDesc* cell = cells[index];
+    // add it to the hash table
+    ht->enter( new AryHashEnt( index, key, keyLen ) );
+    if ( bFree ) delete [] key;
+    // return accessed cell
+    return cell;
+}
+
 ValDesc* AryVal::subscript( ValDesc** args ) {
     switch ( arrayType ) {
         default:
             throw Exception( "internal error: bad array" );
-        case AT_STATIC:
-            {
-                size_t pos = 0;
-                for ( size_t i=0; i < ndims; ++i ) {
-                    ValDesc* val   = args[i];
-                    size_t   mult  = i < ndims-1U ? dims[i] : 0;
-                    if ( val->type != VT_INT && val->type != VT_REAL ) {
-                        throw Exception( "type mismatch dimension #d", (int) i );
-                    }
-                    int64_t d     = val->getIntVal();
-                    if ( d < 0 ) {
-                        throw Exception( "negative array index #%d", (int) i );
-                    }
-                    size_t  index = (size_t) d;
-                    if ( index >= dims[i] ) {
-                        throw Exception( "index #%d out of range", (int) i );
-                    }
-                    pos += mult ? mult * index : index;
-                }
-                if ( pos >= totalSize ) throw Exception( "internal error: bad index" );
-                return cells[pos];
-            }
-            break;
-        case AT_DYNAMIC:
-            {
-                ValDesc* val = args[0];
-                if ( val->type != VT_INT && val->type != VT_REAL ) {
-                    throw Exception( "type mismatch dimension #0" );
-                }
-                int64_t d = val->getIntVal();
-                if ( d < 0 ) {
-                    throw Exception( "negative array index" );
-                }
-                size_t index     = (size_t) d;
-                size_t numFilled = totalSize;
-                if ( index >= dims[0] ) {
-                    // resize cells array
-                    size_t newdim;
-                    if ( dims[0] >= SIZE_MAX / 2U ) {
-                        newdim = SIZE_MAX;
-                    } else {
-                        newdim = dims[0] * 2U; 
-                    }
-                    if ( index >= newdim && index < SIZE_MAX ) {
-                        newdim = index + 1U;
-                    } else if ( index >= newdim ) {
-                        newdim = SIZE_MAX;
-                    }
-                    size_t maxsize = SIZE_MAX / sizeof(ValDesc*);
-                    if ( newdim > maxsize ) throw Exception( "array too large" );
-                    ValDesc** newCells  = new ValDesc* [ newdim ];
-                    if ( numFilled ) {
-                        memcpy( (void*) newCells, (void*) cells, sizeof(ValDesc*)
-                            * numFilled );
-                    }
-                    delete [] cells;
-                    cells   = newCells;
-                    dims[0] = newdim;
-                }
-                if ( index >= numFilled ) { // allocate cell values
-                    while ( numFilled <= index ) {
-                        cells[numFilled++] = ValDesc::create( elemType );
-                    }
-                    totalSize = numFilled;
-                }
-                return cells[index];
-            }
-            break;
-        case AT_ASSOC:
-            {
-                ValDesc* val = args[0];
-                if ( val->type != VT_INT && val->type != VT_REAL && val->type != VT_STR ) {
-                    throw Exception( "type mismatch dimension #0" );
-                }
-                // TBD: keys; hash table lookup
-
-
-                // see if adding a new cell at the end of the array would resize it
-                size_t index = totalSize;
-                if ( index >= dims[0] ) {
-                    // resize cells array
-                    size_t newdim;
-                    if ( dims[0] >= SIZE_MAX / 2U ) {
-                        newdim = SIZE_MAX;
-                    } else {
-                        newdim = dims[0] * 2U; 
-                    }
-                    size_t maxsize = SIZE_MAX / sizeof(ValDesc*);
-                    if ( newdim > maxsize ) throw Exception( "array too large" );
-                    ValDesc** newCells = new ValDesc* [ newdim ];
-                    if ( index ) {
-                        memcpy( (void*) newCells, (void*) cells, sizeof(ValDesc*)
-                            * index );
-                    }
-                    delete [] cells;
-                    cells   = newCells;
-                    dims[0] = newdim;
-                }
-                cells[index] = ValDesc::create( elemType );
-                totalSize = index + 1U;
-                ValDesc* cell = cells[index];
-
-                // return accessed cell
-                return cell;
-            }
-            break;
+        case AT_STATIC:     return subscriptStatic ( args );
+        case AT_DYNAMIC:    return subscriptDynamic( args );
+        case AT_ASSOC:      return subscriptAssoc  ( args );
     }
-
 }
 
 // --- FuncArg ------------------------------------------------------------------------

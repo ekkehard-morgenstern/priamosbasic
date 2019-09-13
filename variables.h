@@ -132,6 +132,14 @@ struct StrVal : public ValDesc {
     virtual void alu( uint16_t op, ValDesc* arg );
 };
 
+struct AryHashEnt : public HashEntry {
+
+    size_t  cellIndex;
+
+    AryHashEnt( size_t cellIndex_, const uint8_t* name_, size_t nameLen_ );
+    virtual ~AryHashEnt();
+};
+
 struct AryVal : public ValDesc {
     ValueType   elemType;   // element type
     ArrayType   arrayType;  // array type
@@ -153,6 +161,9 @@ struct AryVal : public ValDesc {
 private:
     void init();
     void freeCells();
+    ValDesc* subscriptStatic ( ValDesc** args );
+    ValDesc* subscriptDynamic( ValDesc** args );
+    ValDesc* subscriptAssoc  ( ValDesc** args );
 };
 
 struct FuncArg : public NonCopyable {
