@@ -146,13 +146,14 @@ struct AryVal : public ValDesc {
     size_t      ndims;      // number of dimensions
     size_t      totalSize;  // number of total cells
     size_t*     dims;       // dimensions (sizes)
+    size_t*     coordMult;  // coordinate multipliers (offsets)
     ValDesc**   cells;      // array cells
     HashTable*  ht;         // hash table for associative arrays
 
     AryVal( va_list ap );
-    AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, ... );
     AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, 
         const size_t* dims_ );
+    AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, ... );
     virtual ~AryVal();
 
     ValDesc* subscript( ValDesc** args );

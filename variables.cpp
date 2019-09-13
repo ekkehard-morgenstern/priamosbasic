@@ -394,7 +394,7 @@ void AryVal::init() {
     if ( arrayType != AT_STATIC && ndims != 1U ) {
         throw Exception( "array type impossible" );
     }
-    totalSize = 0;
+    totalSize = 1;
     for ( size_t i=0; i < ndims; ++i ) {
         size_t dim = dims[i];
         if ( dim == 0 ) {
@@ -404,6 +404,13 @@ void AryVal::init() {
             throw Exception( "dimension #%d too large", (int) i );
         }
         totalSize *= dim;
+    }
+    size_t offset = 1U;
+    for ( ssize_t i=ndims-1; i >= 0; --i ) {
+        if ( i < (ssize_t)(ndims-1) ) {
+            coordMult[i] = offset;
+        }
+        offset *= dims[i];
     }
     cells = new ValDesc* [ totalSize ];
     for ( size_t i=0; i < totalSize; i++ ) {
@@ -421,8 +428,10 @@ AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
     arrayType = (ArrayType) va_arg( ap, int );
     ndims     = va_arg( ap, size_t );
     dims      = new size_t [ ndims ];
+    coordMult = new size_t [ ndims ];
     for ( size_t i=0; i < ndims; ++i ) {
-        dims[i] = va_arg( ap, size_t );
+        dims[i]      = va_arg( ap, size_t );
+        coordMult[i] = 1;
     }
     init();
 }
@@ -433,7 +442,8 @@ AryVal::AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_, ... )
     va_start( ap, ndims_ );
     dims = new size_t [ ndims ];
     for ( size_t i=0; i < ndims; ++i ) {
-        dims[i] = va_arg( ap, size_t );
+        dims[i]      = va_arg( ap, size_t );
+        coordMult[i] = 1;
     }
     va_end( ap );
     init();
@@ -444,6 +454,8 @@ AryVal::AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_,
     ndims(ndims_) {
     dims = new size_t [ ndims ];
     if ( ndims ) memcpy( dims, dims_, sizeof(size_t) * ndims );
+    coordMult = new size_t [ ndims ];
+    for ( size_t i=0; i < ndims; ++i ) coordMult[i] = 1;
     init();
 }
 
@@ -460,6 +472,7 @@ void AryVal::freeCells() {
 AryVal::~AryVal() {
     if ( ht ) { delete ht; ht = 0; }
     freeCells();
+    delete [] coordMult; coordMult = 0; 
     delete [] dims; dims = 0; ndims = 0;
     elemType = VT_UNDEF;
 }
@@ -468,7 +481,7 @@ ValDesc* AryVal::subscriptStatic( ValDesc** args ) {
     size_t pos = 0;
     for ( size_t i=0; i < ndims; ++i ) {
         ValDesc* val   = args[i];
-        size_t   mult  = i < ndims-1U ? dims[i] : 0;
+        size_t   mult  = i < ndims-1U ? coordMult[i] : 0;
         if ( val->type != VT_INT && val->type != VT_REAL ) {
             throw Exception( "type mismatch dimension #d", (int) i );
         }

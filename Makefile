@@ -42,6 +42,7 @@ TEST1_MODULES=testhashtable.o $(MODULES)
 TEST2_MODULES=testtokenizer.o $(MODULES)
 TEST3_MODULES=testtokenizer2.o $(MODULES)
 TEST4_MODULES=testinterpreter.o $(MODULES)
+TEST5_MODULES=testary.o $(MODULES)
 
 LIBS=-lm -lrt
 
@@ -50,11 +51,12 @@ TEST1=testhashtable
 TEST2=testtokenizer
 TEST3=testtokenizer2
 TEST4=testinterpreter
+TEST5=testary
 
 .cpp.o:
 	$(CXX) -o $@ $<
 
-all: $(APP) $(TEST1) $(TEST2) $(TEST3) $(TEST4)
+all: $(APP) $(TEST1) $(TEST2) $(TEST3) $(TEST4) $(TEST5)
 	echo ok >all
 
 $(APP): $(APP_MODULES)
@@ -71,6 +73,9 @@ $(TEST3): $(TEST3_MODULES)
 
 $(TEST4): $(TEST4_MODULES)
 	$(LXX) -o $(TEST4) $(TEST4_MODULES) $(LIBS)
+
+$(TEST5): $(TEST5_MODULES)
+	$(LXX) -o $(TEST5) $(TEST5_MODULES) $(LIBS)
 
 bytebuffer.o: bytebuffer.cpp $(INCFILES)
 
@@ -103,3 +108,5 @@ testhashtable.o: testhashtable.cpp $(INCFILES)
 testtokenizer2.o: testtokenizer2.cpp $(INCFILES)
 
 testinterpreter.o: testinterpreter.cpp $(INCFILES)
+
+testary.o: testary.cpp $(INCFILES)
