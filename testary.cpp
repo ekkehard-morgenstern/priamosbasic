@@ -11,6 +11,19 @@ static unsigned randomUint() {
     return val;
 }
 
+static void logf( const char* fmt, ... ) {
+    va_list ap;
+    va_start( ap, fmt );
+    struct timespec ts;
+    clock_gettime( CLOCK_REALTIME, &ts );
+    char tibuf[100];
+    strftime( tibuf, sizeof(tibuf), "%Y-%m-%d %H:%M:%S", 
+        localtime(&ts.tv_sec) );
+    printf( "%s.%09lu  ", tibuf, ts.tv_nsec );
+    vprintf( fmt, ap );
+    va_end( ap );
+}
+
 #define CP_NTRIES_I     5
 #define CP_NTRIES_J     3
 
@@ -68,6 +81,7 @@ struct IntTestInfo {
     int64_t     storedValue;
 };
 
+
 static void testIntAry_static() {
 
     static const size_t dims[3] = { 17, 33, 11 };
@@ -76,7 +90,7 @@ static void testIntAry_static() {
     int numreg = 0; int maxreg = dims[0] * dims[1] * dims[2];
     IntTestInfo* check = new IntTestInfo [ maxreg ];
     CoordPool cp( maxreg );
-    printf( "testIntAry_static(): initializing AryVal ...\n" );
+    logf( "testIntAry_static(): initializing AryVal ...\n" );
     for (;;) {
         if ( numreg >= maxreg ) break;
         int coord = cp.dealCoord();
@@ -90,7 +104,7 @@ static void testIntAry_static() {
         ValDesc* cell = av.subscript( vd );
         int64_t value = cell->getIntVal();
         if ( value != 0 ) {
-            printf( "testIntAry_static(): implementation broken, nonzero value "
+            logf( "testIntAry_static(): implementation broken, nonzero value "
                 "found at coord %d (%d,%d,%d), value = %" PRId64 "\n", coord,
                 coor1, coor2, coor3, value );
             break;
@@ -104,8 +118,8 @@ static void testIntAry_static() {
         check[numreg].storedValue = cellValue;
         numreg++;
     }
-    printf( "testIntAry_static(): registered %d out of %d entries\n", numreg, maxreg );
-    printf( "testIntAry_static(): checking AryVal ...\n" );
+    logf( "testIntAry_static(): registered %d out of %d entries\n", numreg, maxreg );
+    logf( "testIntAry_static(): checking AryVal ...\n" );
     int nCorrect = 0;
     int nFailed  = 0;
     for ( int i=0; i < numreg; ++i ) {
@@ -120,28 +134,28 @@ static void testIntAry_static() {
         int64_t cellValue = cell->getIntVal();
         if ( cellValue != check[i].storedValue ) {
             if ( nFailed < 10 ) {
-                printf( "#%d @%d (%d,%d,%d) %" PRId64 " != %" PRId64 "\n", 
+                logf( "#%d @%d (%d,%d,%d) %" PRId64 " != %" PRId64 "\n", 
                     i, coord, coor1, coor2, coor3, cellValue, check[i].storedValue );
             } else if ( nFailed == 10 ) {
-                printf( "...\n" );
+                logf( "...\n" );
             }
             ++nFailed;
         } else {
             ++nCorrect;
         }
     }
-    printf( "testIntAry_static(): %d entries correct, %d failed\n", nCorrect, nFailed );
+    logf( "testIntAry_static(): %d entries correct, %d failed\n", nCorrect, nFailed );
 }
 
 static void testIntAry_dynamic() {
 
-    static const size_t dims[1] = { 10 };
+    static const size_t dims[1] = { 100 };
     AryVal av( VT_INT, AT_DYNAMIC, 1, dims );
     IntVal ix[1]; ValDesc* vd[1]; vd[0] = &ix[0];
     int numreg = 0; int maxreg = 17*33*11;
     IntTestInfo* check = new IntTestInfo [ maxreg ];
     CoordPool cp( maxreg );
-    printf( "testIntAry_dynamic(): initializing AryVal ...\n" );
+    logf( "testIntAry_dynamic(): initializing AryVal ...\n" );
     for (;;) {
         if ( numreg >= maxreg ) break;
         int coord = cp.dealCoord();
@@ -150,7 +164,7 @@ static void testIntAry_dynamic() {
         ValDesc* cell = av.subscript( vd );
         int64_t value = cell->getIntVal();
         if ( value != 0 ) {
-            printf( "testIntAry_dynamic(): implementation broken, nonzero value "
+            logf( "testIntAry_dynamic(): implementation broken, nonzero value "
                 "found at coord %d, value = %" PRId64 "\n", coord, value );
             break;
         }
@@ -163,8 +177,8 @@ static void testIntAry_dynamic() {
         check[numreg].storedValue = cellValue;
         numreg++;
     }
-    printf( "testIntAry_dynamic(): registered %d out of %d entries\n", numreg, maxreg );
-    printf( "testIntAry_dynamic(): checking AryVal ...\n" );
+    logf( "testIntAry_dynamic(): registered %d out of %d entries\n", numreg, maxreg );
+    logf( "testIntAry_dynamic(): checking AryVal ...\n" );
     int nCorrect = 0;
     int nFailed  = 0;
     for ( int i=0; i < numreg; ++i ) {
@@ -174,17 +188,71 @@ static void testIntAry_dynamic() {
         int64_t cellValue = cell->getIntVal();
         if ( cellValue != check[i].storedValue ) {
             if ( nFailed < 10 ) {
-                printf( "#%d @%d %" PRId64 " != %" PRId64 "\n", 
+                logf( "#%d @%d %" PRId64 " != %" PRId64 "\n", 
                     i, coord, cellValue, check[i].storedValue );
             } else if ( nFailed == 10 ) {
-                printf( "...\n" );
+                logf( "...\n" );
             }
             ++nFailed;
         } else {
             ++nCorrect;
         }
     }
-    printf( "testIntAry_dynamic(): %d entries correct, %d failed\n", nCorrect, nFailed );
+    logf( "testIntAry_dynamic(): %d entries correct, %d failed\n", nCorrect, nFailed );
+}
+
+static void testIntAry_assoc() {
+
+    static const size_t dims[1] = { 100 };
+    AryVal av( VT_INT, AT_ASSOC, 1, dims );
+    IntVal ix[1]; ValDesc* vd[1]; vd[0] = &ix[0];
+    int numreg = 0; int maxreg = 17*33*11;
+    IntTestInfo* check = new IntTestInfo [ maxreg ];
+    CoordPool cp( maxreg );
+    logf( "testIntAry_assoc(): initializing AryVal ...\n" );
+    for (;;) {
+        if ( numreg >= maxreg ) break;
+        int coord = cp.dealCoord();
+        if ( coord < 0 ) break;
+        ix[0].setIntVal( coord );
+        ValDesc* cell = av.subscript( vd );
+        int64_t value = cell->getIntVal();
+        if ( value != 0 ) {
+            logf( "testIntAry_assoc(): implementation broken, nonzero value "
+                "found at coord %d, value = %" PRId64 "\n", coord, value );
+            break;
+        }
+        int cellValue;
+        do {
+            cellValue = rand();
+        } while ( cellValue == 0 );       
+        cell->setIntVal( cellValue );
+        check[numreg].coordinate  = coord;
+        check[numreg].storedValue = cellValue;
+        numreg++;
+    }
+    logf( "testIntAry_assoc(): registered %d out of %d entries\n", numreg, maxreg );
+    logf( "testIntAry_assoc(): checking AryVal ...\n" );
+    int nCorrect = 0;
+    int nFailed  = 0;
+    for ( int i=0; i < numreg; ++i ) {
+        int coord = check[i].coordinate;
+        ix[0].setIntVal( coord );
+        ValDesc* cell = av.subscript( vd );
+        int64_t cellValue = cell->getIntVal();
+        if ( cellValue != check[i].storedValue ) {
+            if ( nFailed < 10 ) {
+                logf( "#%d @%d %" PRId64 " != %" PRId64 "\n", 
+                    i, coord, cellValue, check[i].storedValue );
+            } else if ( nFailed == 10 ) {
+                logf( "...\n" );
+            }
+            ++nFailed;
+        } else {
+            ++nCorrect;
+        }
+    }
+    logf( "testIntAry_assoc(): %d entries correct, %d failed\n", nCorrect, nFailed );
 }
 
 int main( int argc, char** argv ) {
@@ -194,9 +262,10 @@ int main( int argc, char** argv ) {
     try {
         testIntAry_static();
         testIntAry_dynamic();
+        testIntAry_assoc();
 
     } catch ( const Exception& xcpt ) {
-        printf( "? %s\n", xcpt.what() );
+        logf( "? %s\n", xcpt.what() );
     }
 
     return EXIT_SUCCESS;
