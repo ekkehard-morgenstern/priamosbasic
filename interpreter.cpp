@@ -339,6 +339,26 @@ bool Interpreter::verifyFuncRes( FuncVal* fn, const FnArg& args ) {
     return true;
 }
 
+void Interpreter::fillArrayArgs( ValDesc* desc, ExprList* param, AryVal*& rAv, 
+    ValDesc**& rArgs ) {
+    AryVal* av = dynamic_cast<AryVal*>( desc );
+    if ( av == 0 ) throw Exception( "interpret error: bad array" );
+    if ( param == 0 ) throw Exception( "bad subscript" );
+    size_t cnt = param->count();
+    ArrayType at = av->arrayType;
+    if ( at == AT_DYNAMIC || at == AT_ASSOC ) {
+        if ( cnt != 1U ) throw Exception( "too many dimensions" );
+    } else if ( at == AT_STATIC ) {
+        if ( cnt < av->ndims ) throw Exception( "too few dimensions" );
+        if ( cnt > av->ndims ) throw Exception( "too many dimensions" );
+    }
+    ValDesc** args = new ValDesc* [ cnt ];
+    ExprInfo* ei   = param->first;
+    size_t    pos  = 0;
+    while ( ei ) { args[pos++] = ei->value; ei = ei->next; }
+    rAv = av; rArgs = args;
+}
+
 ExprList* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
 
     if ( ii.desc == 0 ) {
@@ -366,22 +386,15 @@ ExprList* Interpreter::evalIdentExpr( IdentInfo& ii, ValueType vt ) {
                     verifyFuncRes( fn, args );
                     fillFuncRes( res, args );
                 } else {    // VT_ARY
-                    AryVal* av = dynamic_cast<AryVal*>( ii.desc );
-                    if ( av == 0 ) throw Exception( "interpret error: bad array" );
-                    if ( ii.param == 0 ) throw Exception( "bad subscript" );
-                    size_t cnt = ii.param->count();
-                    ArrayType at = av->arrayType;
-                    if ( at == AT_DYNAMIC || at == AT_ASSOC ) {
-                        if ( cnt != 1U ) throw Exception( "too many dimensions" );
-                    } else if ( at == AT_STATIC ) {
-                        if ( cnt < av->ndims ) throw Exception( "too few dimensions" );
-                        if ( cnt > av->ndims ) throw Exception( "too many dimensions" );
+                    AryVal* av = 0; ValDesc** args = 0;
+                    fillArrayArgs( ii.desc, ii.param, av, args );
+                    try {
+                        res->add( new ExprInfo( av->subscript( args ), false ) );
+                    } catch ( const Exception& xcpt ) {
+                        delete [] args;
+                        throw;
                     }
-                    ValDesc** args = new ValDesc* [ cnt ];
-                    ExprInfo* ei   = ii.param->first;
-                    size_t    pos  = 0;
-                    while ( ei ) { args[pos++] = ei->value; ei = ei->next; }
-                    res->add( new ExprInfo( av->subscript( args ), false ) );
+                    delete [] args;
                 }
                 break;
             default:
@@ -912,26 +925,61 @@ bool Interpreter::getAssignment( ExprList*& lvalues, ExprList*& rvalues ) {
     return true;
 }
 
+void Interpreter::assignBaseType( ValDesc* target, ValDesc* source ) {
+    ValueType vt1 = target->type;
+    ValueType vt2 = source->type;
+    if ( vt1 == VT_STR ) {
+        if ( vt2 != VT_STR ) throw Exception( "type mismatch" );
+        uint8_t* text = 0; size_t len = 0; bool bFree = false;
+        source->getStrVal( text, len, bFree );
+        target->setStrVal( text, len );
+        if ( bFree ) delete [] text;
+
+    } else if ( vt1 == VT_INT ) {
+        if ( vt2 != VT_INT && vt2 != VT_REAL ) throw Exception( "type mismatch" );
+        target->setIntVal( source->getIntVal() );
+
+    } else if ( vt1 == VT_REAL ) {
+        if ( vt2 != VT_INT && vt2 != VT_REAL ) throw Exception( "type mismatch" );
+        target->setRealVal( source->getRealVal() );
+    } else {
+        throw Exception( "bad base type" );
+    }
+}
+
 void Interpreter::doAssignment( const ExprList* lvalues, const ExprList* rvalues ) {
     if ( lvalues == 0 || rvalues == 0 ) return;
     const ExprInfo* ei1 = lvalues->first;
     const ExprInfo* ei2 = rvalues->first;
     while ( ei1 && ei2 ) {
         ValueType vt1 = ei1->value->type;
-        ValueType vt2 = ei2->value->type;
 
-        if ( vt1 == VT_STR ) {
-            if ( vt2 != VT_STR ) throw Exception( "type mismatch" );
-            uint8_t* text = 0; size_t len = 0; bool bFree = false;
-            ei2->value->getStrVal( text, len, bFree );
-            ei1->value->setStrVal( text, len );
-            if ( bFree ) delete [] text;
-        } else if ( vt1 == VT_INT ) {
+        if ( vt1 == VT_STR || vt1 == VT_INT || vt1 == VT_REAL ) {
+            assignBaseType( ei1->value, ei2->value );
 
-        } else if ( vt1 == VT_REAL ) {
+        } else if ( vt1 == VT_ARY ) {
+            AryVal* av = 0; ValDesc** args = 0;
+            fillArrayArgs( ei1->value, ei1->param, av, args );
+            try {
+                ValDesc* cell = av->subscript( args );
+                switch ( av->elemType ) {
+                    case VT_STR: case VT_INT: case VT_REAL:
+                        assignBaseType( cell, ei2->value );
+                        break;
+                    default:
+                        throw Exception( "unsupported array element type" );
+                }
+            } catch ( const Exception& xcpt ) {
+                delete [] args;
+                throw;
+            }
+            delete [] args;
 
+        } else if ( vt1 == VT_FUNC ) {
+            // TODO: LEFT$() etc.
+            throw Exception( "assignment to function" );
+            
         }
-
         ei1 = ei1->next;
         ei2 = ei2->next;
     }

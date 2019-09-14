@@ -251,6 +251,10 @@ class Interpreter : public NonCopyable {
     bool getNumIdentExpr( IdentInfo& ii );
         // gets a numeric identifier, possibly with arguments.
 
+    static void fillArrayArgs( ValDesc* desc, ExprList* param, AryVal*& rAv, 
+        ValDesc**& rArgs );
+        // fills array arguments into a value array
+
     bool getStrIdentExpr( IdentInfo& ii );
         // gets a string identifier, possibly with arguments.
 
@@ -329,6 +333,9 @@ class Interpreter : public NonCopyable {
     bool getAssignment( ExprList*& lvalues, ExprList*& rvalues );
         // get lvalues and rvalues for assignment
     
+    static void assignBaseType( ValDesc* target, ValDesc* source );
+        // assign base type rvalue to lvalue
+
     static void doAssignment( const ExprList* lvalues, const ExprList* rvalues );
         // executes assignment
 
