@@ -421,6 +421,9 @@ void AryVal::init() {
     } else {
         ht = 0;
     }
+    if ( arrayType == AT_ASSOC || arrayType == AT_DYNAMIC ) {
+        totalSize = 0;
+    }
 }
 
 AryVal::AryVal( va_list ap ) : ValDesc(VT_ARY) {
@@ -459,7 +462,11 @@ AryVal::AryVal( ValueType elemType_, ArrayType arrayType_, size_t ndims_,
     init();
 }
 
-void AryVal::freeCells() {
+AryVal::~AryVal() {
+    if ( ht ) { delete ht; ht = 0; }
+    if ( arrayType == AT_ASSOC || arrayType == AT_DYNAMIC ) {
+        totalSize = dims[0];
+    }
     while ( totalSize ) {
         --totalSize;
         if ( cells[totalSize] ) { 
@@ -467,11 +474,6 @@ void AryVal::freeCells() {
         }
     }
     delete [] cells; cells = 0; 
-}
-
-AryVal::~AryVal() {
-    if ( ht ) { delete ht; ht = 0; }
-    freeCells();
     delete [] coordMult; coordMult = 0; 
     delete [] dims; dims = 0; ndims = 0;
     elemType = VT_UNDEF;

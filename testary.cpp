@@ -133,12 +133,67 @@ static void testIntAry_static() {
     printf( "testIntAry_static(): %d entries correct, %d failed\n", nCorrect, nFailed );
 }
 
+static void testIntAry_dynamic() {
+
+    static const size_t dims[1] = { 10 };
+    AryVal av( VT_INT, AT_DYNAMIC, 1, dims );
+    IntVal ix[1]; ValDesc* vd[1]; vd[0] = &ix[0];
+    int numreg = 0; int maxreg = 17*33*11;
+    IntTestInfo* check = new IntTestInfo [ maxreg ];
+    CoordPool cp( maxreg );
+    printf( "testIntAry_dynamic(): initializing AryVal ...\n" );
+    for (;;) {
+        if ( numreg >= maxreg ) break;
+        int coord = cp.dealCoord();
+        if ( coord < 0 ) break;
+        ix[0].setIntVal( coord );
+        ValDesc* cell = av.subscript( vd );
+        int64_t value = cell->getIntVal();
+        if ( value != 0 ) {
+            printf( "testIntAry_dynamic(): implementation broken, nonzero value "
+                "found at coord %d, value = %" PRId64 "\n", coord, value );
+            break;
+        }
+        int cellValue;
+        do {
+            cellValue = rand();
+        } while ( cellValue == 0 );       
+        cell->setIntVal( cellValue );
+        check[numreg].coordinate  = coord;
+        check[numreg].storedValue = cellValue;
+        numreg++;
+    }
+    printf( "testIntAry_dynamic(): registered %d out of %d entries\n", numreg, maxreg );
+    printf( "testIntAry_dynamic(): checking AryVal ...\n" );
+    int nCorrect = 0;
+    int nFailed  = 0;
+    for ( int i=0; i < numreg; ++i ) {
+        int coord = check[i].coordinate;
+        ix[0].setIntVal( coord );
+        ValDesc* cell = av.subscript( vd );
+        int64_t cellValue = cell->getIntVal();
+        if ( cellValue != check[i].storedValue ) {
+            if ( nFailed < 10 ) {
+                printf( "#%d @%d %" PRId64 " != %" PRId64 "\n", 
+                    i, coord, cellValue, check[i].storedValue );
+            } else if ( nFailed == 10 ) {
+                printf( "...\n" );
+            }
+            ++nFailed;
+        } else {
+            ++nCorrect;
+        }
+    }
+    printf( "testIntAry_dynamic(): %d entries correct, %d failed\n", nCorrect, nFailed );
+}
+
 int main( int argc, char** argv ) {
 
     srand( randomUint() );
 
     try {
         testIntAry_static();
+        testIntAry_dynamic();
 
     } catch ( const Exception& xcpt ) {
         printf( "? %s\n", xcpt.what() );

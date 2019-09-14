@@ -161,7 +161,6 @@ struct AryVal : public ValDesc {
 
 private:
     void init();
-    void freeCells();
     ValDesc* subscriptStatic ( ValDesc** args );
     ValDesc* subscriptDynamic( ValDesc** args );
     ValDesc* subscriptAssoc  ( ValDesc** args );
