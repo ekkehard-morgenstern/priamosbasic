@@ -342,6 +342,8 @@ class Interpreter : public NonCopyable {
     bool getLineNo( uint32_t& rLineNo );
     bool getLineNoExpr( uint32_t& lineNo1, uint32_t& lineNo2 );
     void list();
+    void let();
+    void print();
 
     static void funcHandler( FuncArg* arg );
 

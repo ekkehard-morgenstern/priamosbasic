@@ -614,9 +614,7 @@ uint16_t Tokenizer::tokenize() {
 
         } else if ( tok == T_IDENT ) {
             // if followed by colon, might be label
-            if ( pos >= sourceEnd ) return T_SYNERR;
-            uint8_t b = *pos;
-            if ( b == UINT8_C(0X3A) ) {
+            if ( pos < sourceEnd && *pos == UINT8_C(0X3A) ) {
                 ++pos;
                 if ( identDecorated() ) return T_SYNERR;
                 if ( !storeLabel() ) return T_MEMERR;

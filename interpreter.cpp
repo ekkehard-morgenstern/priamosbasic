@@ -125,7 +125,9 @@ size_t ExprList::count() const {
 // --- Interpreter -------------------------------------------------------------------
 
 const CmdDecl Interpreter::cmdDeclTable[] = {
-    { KW_LIST, &Interpreter::list },
+    { KW_LIST, &Interpreter::list  },
+    { KW_LET,  &Interpreter::let   },
+    { T_PRINT, &Interpreter::print },
     { 0, 0 }
 };
 
@@ -500,9 +502,14 @@ ExprList* Interpreter::getSignedExpr() {
     ExprList* el = getNumBaseExpr();
     if ( tok == T_EOL ) return el;
     if ( el == 0 ) throw Exception( "syntax error: expression expected" );
-    verifySingleNumber( el );
-    if ( tok == T_PLUS ) return el;
-    el->first->value->alu( tok );
+    try {
+        verifySingleNumber( el );
+        if ( tok == T_PLUS ) return el;
+        el->first->value->alu( tok );
+    } catch ( const Exception& xcpt ) {
+        delete el;
+        throw;
+    }
     return el;
 }
 
@@ -514,9 +521,14 @@ ExprList* Interpreter::getNotExpr() {
     ExprList* el = getSignedExpr();
     if ( tok == T_EOL ) return el;
     if ( el == 0 ) throw Exception( "syntax error: expression expected" );
-    verifySingleNumber( el );
-    if ( el->first->value->type == VT_REAL ) el->first->demoteRealToInt();
-    el->first->value->alu( tok );
+    try {
+        verifySingleNumber( el );
+        if ( el->first->value->type == VT_REAL ) el->first->demoteRealToInt();
+        el->first->value->alu( tok );
+    } catch ( const Exception& xcpt ) {
+        delete el;
+        throw;
+    }
     return el;
 }
 
@@ -550,19 +562,24 @@ ExprList* Interpreter::getMultExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != T_TIMES && tok != T_DIV ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getNotExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+
+            el2 = getNotExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+
+            verifySingleNumber( el2 );
+            autoPromote( el->first, el2->first );
+            el->first->value->alu( tok, el2->first->value );
+
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoPromote( el->first, el2->first );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -578,19 +595,24 @@ ExprList* Interpreter::getPowExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != T_POW ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getMultExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+
+            el2 = getMultExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+
+            verifySingleNumber( el2 );
+            autoPromote( el->first, el2->first, true );
+            el->first->value->alu( tok, el2->first->value );
+
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoPromote( el->first, el2->first, true );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -607,19 +629,24 @@ ExprList* Interpreter::getAddExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != T_MINUS && tok != T_PLUS ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getPowExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+            
+            el2 = getPowExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+            
+            verifySingleNumber( el2 );
+            autoPromote( el->first, el2->first );
+            el->first->value->alu( tok, el2->first->value );
+
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoPromote( el->first, el2->first );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -636,19 +663,24 @@ ExprList* Interpreter::getShiftExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != KW_SHL && tok != KW_SHR ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getAddExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+
+            el2 = getAddExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+
+            verifySingleNumber( el2 );
+            autoDemote( el->first, el2->first );
+            el->first->value->alu( tok, el2->first->value );
+
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoDemote( el->first, el2->first );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -666,21 +698,26 @@ ExprList* Interpreter::getCmpExpr() {
         uint16_t tok = scan.tokType();
         if ( tok != T_EQ && tok != T_NE && tok != T_LT && tok != T_GT &&
             tok != T_GE && tok != T_LE ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getShiftExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+        
+            el2 = getShiftExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+
+            verifySingleNumber( el2 );
+            autoPromote( el->first, el2->first );
+            el->first->value->alu( tok, el2->first->value );
+            delete el2; el2 = 0;
+            if ( el->first->value->type == VT_REAL ) el->first->demoteRealToInt();
+
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoPromote( el->first, el2->first );
-        el->first->value->alu( tok, el2->first->value );
-        delete el2;
-        if ( el->first->value->type == VT_REAL ) el->first->demoteRealToInt();
         break;
     }
 
@@ -711,18 +748,23 @@ ExprList* Interpreter::getConcatExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != T_PLUS ) break;
-        verifySingleString( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getStrBaseExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleString( el );
+            skipTok();
+        
+            el2 = getStrBaseExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+        
+            verifySingleString( el2 );
+            el->first->value->alu( tok, el2->first->value );
+        
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleString( el2 );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -738,20 +780,25 @@ ExprList* Interpreter::getStrCmpExpr() {
         uint16_t tok = scan.tokType();
         if ( tok != T_EQ && tok != T_NE && tok != T_LT && tok != T_GT && 
             tok != T_LE && tok != T_GE ) break;
-        verifySingleString( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getStrBaseExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleString( el );
+            skipTok();
+        
+            el2 = getStrBaseExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+        
+            verifySingleString( el2 );
+            el->first->value->alu( tok, el2->first->value );
+            delete el2; el2 = 0;
+            el->first->changeStrToInt();
+        
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleString( el2 );
-        el->first->value->alu( tok, el2->first->value );
-        delete el2;
-        el->first->changeStrToInt();
         break;
     }
 
@@ -779,19 +826,24 @@ ExprList* Interpreter::getAndExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != KW_AND && tok != KW_NAND ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getBaseExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+        
+            el2 = getBaseExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+        
+            verifySingleNumber( el2 );
+            autoDemote( el->first, el2->first );
+            el->first->value->alu( tok, el2->first->value );
+        
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoDemote( el->first, el2->first );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -807,19 +859,24 @@ ExprList* Interpreter::getOrExpr() {
     for (;;) {
         uint16_t tok = scan.tokType();
         if ( tok != KW_OR && tok != KW_NOR && tok != KW_XOR && tok != KW_XNOR ) break;
-        verifySingleNumber( el );
-        if ( !scan.skipTok() ) { 
-            delete el; 
-            throw Exception( "interpret error: bad token");
-        }
-        ExprList* el2 = getAndExpr();
-        if ( el2 == 0 ) {
+        
+        ExprList* el2 = 0;
+        try {
+            verifySingleNumber( el );
+            skipTok();
+            
+            el2 = getAndExpr();
+            if ( el2 == 0 ) throw Exception( "syntax error: expression expected" );
+            
+            verifySingleNumber( el2 );            
+            autoDemote( el->first, el2->first );
+            el->first->value->alu( tok, el2->first->value );
+
+        } catch ( const Exception& xcpt ) {
+            if ( el2 ) delete el2;
             delete el;
-            throw Exception( "syntax error: expression expected" );
+            throw;
         }
-        verifySingleNumber( el2 );
-        autoDemote( el->first, el2->first );
-        el->first->value->alu( tok, el2->first->value );
         delete el2;
     }
 
@@ -845,15 +902,15 @@ ExprList* Interpreter::getExprList() {
         uint16_t tok = scan.tokType();
         if ( tok != T_COMMA ) break;
 
-        if ( !scan.skipTok() ) {
+        try {
+            skipTok();
+            el = getExpr();
+            if ( el == 0 ) {
+                throw Exception( "syntax error: expression expected after comma" );
+            }
+        } catch ( const Exception& xcpt ) {
             delete res;
-            throw Exception( "interpret error: bad token" );
-        }
-
-        el = getExpr();
-        if ( el == 0 ) {
-            delete res;
-            throw Exception( "syntax error: expression expected after comma" );
+            throw;
         }
     }
 
@@ -886,15 +943,15 @@ ExprList* Interpreter::getLvalueList() {
         uint16_t tok = scan.tokType();
         if ( tok != T_COMMA ) break;
 
-        if ( !scan.skipTok() ) {
+        try {
+            skipTok();
+            el = getAssignLvalue();
+            if ( el == 0 ) {
+                throw Exception( "syntax error: lvalue expected after comma" );
+            }
+        } catch ( const Exception& xcpt ) {
             delete res;
-            throw Exception( "interpret error: bad token" );
-        }
-
-        el = getAssignLvalue();
-        if ( el == 0 ) {
-            delete res;
-            throw Exception( "syntax error: lvalue expected after comma" );
+            throw;
         }
     }
 
@@ -905,20 +962,21 @@ bool Interpreter::getAssignment( ExprList*& lvalues, ExprList*& rvalues ) {
     // assignment := [ 'LET' ] lvalue-list '=' expr-list .
     ExprList* el1 = getLvalueList();
     if ( el1 == 0 ) return false;
-    uint16_t tok = scan.tokType();
-    if ( tok != T_EQ || !scan.skipTok() ) {
+    ExprList* el2 = 0;
+    try {
+        uint16_t tok = scan.tokType();
+        if ( tok != T_EQ || !scan.skipTok() ) {
+            throw Exception( "syntax error: '=' expected" );
+        }
+        el2 = getExprList();
+        if ( el2 == 0 ) throw Exception( "syntax error: expression(s) expected" );
+        if ( el1->count() != el2->count() ) {
+            throw Exception( "syntax error: pairing mismatch" );
+        }
+    } catch ( const Exception& xcpt ) {
+        if ( el2 ) delete el2;
         delete el1;
-        throw Exception( "syntax error: '=' expected" );
-    }
-    ExprList* el2 = getExprList();
-    if ( el2 == 0 ) {
-        delete el1;
-        throw Exception( "syntax error: expression(s) expected" );
-    }
-    if ( el1->count() != el2->count() ) {
-        delete el2;
-        delete el1;
-        throw Exception( "syntax error: pairing mismatch" );
+        throw;
     }
     lvalues = el1;
     rvalues = el2;
@@ -1022,6 +1080,41 @@ void Interpreter::list() {
         if ( text == 0 ) throw Exception( "list error: detokenization failed" );
         printf( "%s\n", text );
     }
+}
+
+void Interpreter::let() {
+    ExprList* lvalues = 0;
+    ExprList* rvalues = 0;
+    if ( !getAssignment( lvalues, rvalues ) ) {
+        throw Exception( "assignment expected" );
+    }
+    try {
+        doAssignment( lvalues, rvalues );
+    } catch ( const Exception& xcpt ) {
+        delete rvalues;
+        delete lvalues;
+        throw;
+    }
+    delete rvalues;
+    delete lvalues;
+}
+
+void Interpreter::print() {
+    // NOTE: provisorical implementation
+    // TODO: proper PRINT implementation
+    ExprList* el = getExprList();
+    if ( el ) {
+        ExprInfo* ei = el->first;
+        while ( ei ) {
+            uint8_t* text = 0; size_t len = 0; bool bFree = false;
+            ei->value->getStrVal( text, len, bFree );
+            fwrite( text, len, 1U, stdout );
+            if ( bFree ) delete [] text;
+            ei = ei->next;
+            if ( ei ) fputc( '\t', stdout );
+        }
+    }
+    printf( "\n" );
 }
 
 void Interpreter::funcHandler( FuncArg* arg ) {
