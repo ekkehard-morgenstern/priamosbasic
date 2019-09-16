@@ -67,7 +67,7 @@ struct ValDesc : public NonCopyable {
     virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
-    virtual void setStrVal( const uint8_t* ptr, size_t len );
+    virtual void setStrVal( const uint8_t* ptr, size_t len, bool bFree_ );
 
     virtual void alu( uint16_t op );
     virtual void alu( uint16_t op, ValDesc* arg );
@@ -86,7 +86,7 @@ struct IntVal : public ValDesc {
     virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
-    virtual void setStrVal( const uint8_t* ptr, size_t len );
+    virtual void setStrVal( const uint8_t* ptr, size_t len, bool bFree_ );
 
     virtual void alu( uint16_t op );
     virtual void alu( uint16_t op, ValDesc* arg );
@@ -105,7 +105,7 @@ struct RealVal : public ValDesc {
     virtual void setRealVal( double val );
 
     virtual void getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const;
-    virtual void setStrVal( const uint8_t* ptr, size_t len );
+    virtual void setStrVal( const uint8_t* ptr, size_t len, bool bFree_ );
 
     virtual void alu( uint16_t op );
     virtual void alu( uint16_t op, ValDesc* arg );

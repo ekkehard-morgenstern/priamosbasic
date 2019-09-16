@@ -50,7 +50,7 @@ void ValDesc::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
     rPtr = &b; rLen = 0; rFree = false;
 }
 
-void ValDesc::setStrVal( const uint8_t* ptr, size_t len ) {}
+void ValDesc::setStrVal( const uint8_t* ptr, size_t len, bool bFree_ ) {}
 
 void ValDesc::alu( uint16_t op ) {}
 void ValDesc::alu( uint16_t op, ValDesc* arg ) {}
@@ -71,7 +71,7 @@ void IntVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
     rFree = true;
 }
 
-void IntVal::setStrVal( const uint8_t* ptr, size_t len ) {
+void IntVal::setStrVal( const uint8_t* ptr, size_t len, bool bFree_ ) {
     Tokenizer t( ptr, len );
     uint16_t tok = t.nextTok(); bool minus = false;
     if ( tok == T_MINUS ) {
@@ -179,7 +179,7 @@ void RealVal::getStrVal( uint8_t*& rPtr, size_t& rLen, bool& rFree ) const {
     rFree = true;
 }
 
-void RealVal::setStrVal( const uint8_t* ptr, size_t len ) {
+void RealVal::setStrVal( const uint8_t* ptr, size_t len, bool bFree_ ) {
     Tokenizer t( ptr, len );
     uint16_t tok = t.nextTok(); bool minus = false;
     if ( tok == T_MINUS ) {
@@ -280,7 +280,7 @@ StrVal::~StrVal() {
 
 int64_t StrVal::getIntVal() const { 
     IntVal tmp;
-    tmp.setStrVal( text, len );
+    tmp.setStrVal( text, len, false );
     return tmp.value;
 }
 
@@ -293,7 +293,7 @@ void StrVal::setIntVal( int64_t val ) {
 
 double StrVal::getRealVal() const { 
     RealVal tmp;
-    tmp.setStrVal( text, len );
+    tmp.setStrVal( text, len, false );
     return tmp.value;
 }
 

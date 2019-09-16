@@ -990,7 +990,7 @@ void Interpreter::assignBaseType( ValDesc* target, ValDesc* source ) {
         if ( vt2 != VT_STR ) throw Exception( "type mismatch" );
         uint8_t* text = 0; size_t len = 0; bool bFree = false;
         source->getStrVal( text, len, bFree );
-        target->setStrVal( text, len );
+        target->setStrVal( text, len, true  );
         if ( bFree ) delete [] text;
 
     } else if ( vt1 == VT_INT ) {
