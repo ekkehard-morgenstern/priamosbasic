@@ -7,5 +7,7 @@ It is a work in progress, currently I'm working on the interpreter itself. I pla
 
 Since I do not have much time to work on it, expect slow updates.
 
+If you do want to run it, run "make" from the command line, then type "./testinterpreter" to run the interpreter test, which permits you to enter commands (and program lines). LIST, LET, and PRINT should already work (PRINT is only implemented for testing purposes, it doesn't support the full PRINT syntax yet). LET is still mandatory. 
+
 License is GPLv3. Platform is unspecified as of yet, but I'm using G++ on Linux for development.
 
