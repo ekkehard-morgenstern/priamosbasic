@@ -11,3 +11,4 @@ If you do want to run it, run "make" from the command line, then type "./testint
 
 License is GPLv3. Platform is unspecified as of yet, but I'm using G++ on Linux for development.
 
+UPDATE 2022-08-03: Expect the current code base to be moved to a branch and then deleted from the master in the foreseeable future. I've been working on several concepts that are MUCH smaller. If I decide on something useful, I will bring it up here.
